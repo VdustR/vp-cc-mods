@@ -77,6 +77,7 @@ An installed plugin is copied alone, so it cannot import from outside its own fo
 - In a test, `$.prompt.submit` from the test raises `prompt.submit` with no `origin`. A hook that reads `e.origin` must allow for that.
 - A test that stubs a method event answers it with `{ value }`, including `ui.toast` (`{ value: undefined }`).
 - The test's `$` has no `$.store`; check what a plugin stored through what it draws or answers.
+- `session.start` does not run under `claude plugin test`. Read what a plugin needs from the session (its root, for example) lazily, not only in `session.start`, or the tests never exercise it.
 
 ## Official resources
 

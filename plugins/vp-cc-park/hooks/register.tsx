@@ -47,8 +47,18 @@ const ITEM_KEY = 'item:'
 // write is not atomic, so each idea lives under its own key: sessions that
 // park or unpark different ideas never overwrite each other.
 
+/** This session's project root, read once and kept in state. */
+async function projectRoot($: EngineInterface): Promise<string> {
+  const known = await read($, project)
+  if (known !== '') return known
+  const root = await $.session.root()
+  await update($, project, () => root)
+  return root
+}
+
 /** Reads every idea from the store, oldest first, into this session's copy. */
 async function refreshItems($: EngineInterface): Promise<ParkItem[]> {
+  await projectRoot($)
   const keys = (await $.store.keys()).filter(key => key.startsWith(ITEM_KEY))
   const list: ParkItem[] = []
   for (const key of keys) {
@@ -113,8 +123,6 @@ export const register: Register = (on, options) => {
       argumentHint: '[idea]',
       immediate: true,
     })
-    const root = await $.session.root()
-    await update($, project, () => root)
     await refreshItems($)
     // Start in the language of the last session until this one is translated.
     const stored = parseLabels(await $.store.get('labels'), DEFAULT_LABELS)
@@ -142,7 +150,7 @@ export const register: Register = (on, options) => {
       id: `${at.toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       text,
       at,
-      project: await read($, project),
+      project: await projectRoot($),
     }
     await addItem($, item)
     $.ui.toast(fill((await read($, labels)).parked, { text }))

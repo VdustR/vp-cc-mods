@@ -101,15 +101,19 @@ test('Remove unparks an idea without touching the prompt', async ($, on) => {
 test("another project's ideas are listed apart and never counted here", async ($, on) => {
   engine(on, {
     'item:other': { id: 'other', text: 'Fix the flaky test', at: 5, project: '/work/site' },
+    'item:here': { id: 'here', text: 'Tidy the band', at: 6, project: ROOT },
   })
 
   for (const surface of SURFACES) {
     const band = await $.ui.mount({ plugin: 'vp-cc-park', surface, ...BAND })
-    expect(await drawn(band)).not.toContain('parked')
+    await $.command.run({ command: 'vp-cc-park', args: '' })
+    await $.command.run({ command: 'vp-cc-park', args: '' })
+    expect(await drawn(band)).toContain('🅿 1 parked')
 
     await $.command.run({ command: 'vp-cc-park', args: '' })
     const open = await drawn(band)
-    expect(open).toContain('🅿 0 parked')
+    expect(open).toContain('Tidy the band')
+    expect(open).not.toContain('Tidy the band (app)')
     expect(open).toContain('Other projects')
     expect(open).toContain('Fix the flaky test')
     expect(open).toContain('(site)')
