@@ -221,11 +221,15 @@ export const register: Register = (on, options) => {
     }
 
     const { Box, Text, Button, Markdown } = $.ui.resolve(e)
-    // The band is shared: draw above what the other plugins and the engine draw.
+    // The band is shared: draw above what the other plugins and the engine draw,
+    // behind this plugin's name so the person can tell the blocks apart.
     const below = await next(e)
     const stack = (tree: JSX.Element) => (
       <Box flexDirection="column">
-        {tree}
+        <Box gap={1} alignItems="flex-start">
+          <Text inverse bold>{' recap '}</Text>
+          {tree}
+        </Box>
         {below}
       </Box>
     )

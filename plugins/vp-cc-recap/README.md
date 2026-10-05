@@ -17,10 +17,12 @@ After a break, the hard part of a long session is starting again: you have to re
 ## What it looks like
 
 ```text
-⏭ Hand to Claude: Move the plugin into the repo
-🎯 Ship an ADHD-friendly recap
-1 Start   2 Details   3 Dismiss   Last reply 12 min ago
+ recap  ⏭ Hand to Claude: Move the plugin into the repo
+        🎯 Ship an ADHD-friendly recap
+        1 Start   2 Details   3 Dismiss   Last reply 12 min ago
 ```
+
+The ` recap ` tag is drawn in inverse video, so the recap stands apart from other plugins' blocks in the same band.
 
 This is the English version. In a session where you write another language, the same layout appears with the model's translation of every label.
 

@@ -73,6 +73,7 @@ test('/vp-cc-recap leads with the next step and fills it into the prompt', async
     expect(compact).not.toContain('Put the next step first')
     // The band stacks above what the other plugins and the engine draw.
     expect(compact).toContain('engine band')
+    expect(await band.find({ type: 'Text', text: ' recap ' })).toBeDefined()
 
     await band.press({ key: 'more' })
     expect(await drawn(band)).toContain('Put the next step first')
