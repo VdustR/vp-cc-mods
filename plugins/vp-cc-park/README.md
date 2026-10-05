@@ -17,18 +17,20 @@ A side idea that shows up in the middle of a task pulls you away from it: either
 Collapsed, after two ideas were parked:
 
 ```text
-🅿 2 parked   Show
+ park  🅿 2 parked   Show
 ```
 
 After **Show**, or `/vp-cc-park` with no idea:
 
 ```text
-🅿 2 parked   Hide
-• Rename the branch before the PR   Start   Remove
-• Write the timebox README   Start   Remove
-Other projects
-• Fix the flaky test (site)   Start   Remove
+ park  🅿 2 parked   Hide
+       • Rename the branch before the PR   Start   Remove
+       • Write the timebox README   Start   Remove
+       Other projects
+       • Fix the flaky test (site)   Start   Remove
 ```
+
+The ` park ` tag is drawn in inverse video, so the block stands apart from other plugins' blocks in the same band.
 
 This is the English version. In a session where you write another language, the labels appear in that language once you have sent a prompt and used the command.
 
