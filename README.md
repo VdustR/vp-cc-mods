@@ -14,7 +14,7 @@ Mods change how Claude Code itself looks and behaves: they draw above the prompt
 
 | Plugin | Value | Docs |
 | :- | :- | :- |
-| `vp-cc-recap` | After a break, see the one next step and start it with one keypress. The recap appears above the prompt on demand or after you have been idle. | [README](plugins/vp-cc-recap/README.md) |
+| `vp-cc-recap` | After a break, see the one next step and start it with one keypress. The recap appears above the prompt on demand or after you have been idle, in the language you write in. | [README](plugins/vp-cc-recap/README.md) |
 
 ## Install
 

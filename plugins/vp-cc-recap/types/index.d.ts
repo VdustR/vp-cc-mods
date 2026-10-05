@@ -1,6 +1,32 @@
 /** What started a recap. */
 export type RecapTrigger = 'manual' | 'idle'
 
+/**
+ * Every string the band draws. The model returns them in the user's language
+ * with each recap; English defaults fill any it leaves out or gets wrong.
+ * `{n}`, `{step}` and `{question}` are placeholders the mod fills in.
+ */
+export type RecapLabels = {
+  handToClaude: string
+  yourStep: string
+  waiting: string
+  then: string
+  start: string
+  done: string
+  reply: string
+  details: string
+  less: string
+  dismiss: string
+  lastReplyJustNow: string
+  lastReplyMinutesAgo: string
+  doneFill: string
+  replyFill: string
+  preparing: string
+  nothingYet: string
+  failed: string
+  fillFailed: string
+}
+
 /** The recap the model returns, parsed from its JSON reply. */
 export type RecapContent = {
   /** The one action the person can take now. */
@@ -29,7 +55,7 @@ export type RecapView =
       /** When the last main-thread turn ended, in clock milliseconds. */
       lastTurnAt?: number
     }
-  | { phase: 'error'; trigger: RecapTrigger; reason: string }
+  | { phase: 'error'; trigger: RecapTrigger; reason: 'nothing-yet' | 'failed'; detail?: string }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -37,6 +63,8 @@ declare module 'claude-code' {
       view: RecapView
       /** Whether the band shows the finished items too. */
       isExpanded: boolean
+      /** The labels from the latest recap, so states drawn before a reply match its language. */
+      labels: RecapLabels
     }
   }
 }

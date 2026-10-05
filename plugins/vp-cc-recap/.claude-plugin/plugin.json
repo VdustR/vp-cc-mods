@@ -1,6 +1,6 @@
 {
   "name": "vp-cc-recap",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An ADHD-friendly session recap above the prompt: /vp-cc-recap on demand, and automatically after you have been idle",
   "types": "./types/index.d.ts",
   "userConfig": {

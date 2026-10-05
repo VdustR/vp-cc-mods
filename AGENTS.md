@@ -70,7 +70,7 @@ node scripts/check.mjs               # every plugin
 node scripts/check.mjs vp-cc-<name>  # only the plugins you changed
 ```
 
-It checks the layout rules (prefix, directory and manifest names, marketplace entries, READMEs), runs `claude plugin validate` on the marketplace and each plugin, and runs `claude plugin test` in each plugin with tests. It needs Claude Code 2.1.286 or later, the lowest version it has been run on; set `CLAUDE_BIN` to use a different `claude` executable.
+It checks the layout rules (prefix, directory and manifest names, marketplace entries, READMEs) and the English-only rule, runs `claude plugin validate` on the marketplace and each plugin, and runs `claude plugin test` in each plugin with tests. It needs Claude Code 2.1.286 or later, the lowest version it has been run on; set `CLAUDE_BIN` to use a different `claude` executable.
 
 Tests mount drawings on both `terminal` and `desktop`, and stub every `$` call that reaches outside the plugin (`model.fork`, `prompt.fill`, the clock through `mock.clock`).
 
@@ -117,7 +117,8 @@ Then run `/reload-plugins` in open sessions, or start a new session, so the live
 
 ## Documentation
 
-- Write documentation, code, comments and commit messages in American English. User-facing UI strings in a plugin may be in Traditional Chinese.
+- Write everything in this repository in American English: documentation, code, comments, UI strings, tests, examples, commit messages and pull request text. `scripts/check.mjs` fails on Chinese, Japanese or Korean text in any tracked file.
+- A plugin that shows text to the user localizes it at runtime: ask the model to write its output, labels included, in the language the user writes in, and keep English defaults in the code for anything the model omits or gets wrong.
 - Each plugin README opens with its value (the problem it solves and why it helps), then usage: what it looks like, how to use it, configuration, how it works, limits, and how to develop it.
 - The root README lists every plugin with a one-line value statement and a link to its README.
 - Keep a README in step with its plugin's behavior in the same commit.

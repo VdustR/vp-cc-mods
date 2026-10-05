@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Runs every automated check this repository requires before a pull request:
-// marketplace and plugin layout rules, `claude plugin validate` on the
+// marketplace and plugin layout rules, the English-only rule for tracked files, `claude plugin validate` on the
 // marketplace and each plugin, and `claude plugin test` in each plugin that
 // has tests. CI runs the same script.
 //
@@ -95,6 +95,26 @@ function checkLayout() {
   return dirs
 }
 
+// The repository is written in English; text in other scripts belongs in the
+// model's output at runtime, never in the source.
+const NON_ENGLISH = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/
+
+function checkEnglishOnly() {
+  const result = spawnSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+  if (result.status !== 0) {
+    fail('english: git ls-files failed')
+    return
+  }
+  for (const file of result.stdout.split('\0').filter(Boolean)) {
+    const path = join(root, file)
+    if (!existsSync(path)) continue
+    const lines = readFileSync(path, 'utf8').split('\n')
+    lines.forEach((line, index) => {
+      if (NON_ENGLISH.test(line)) fail(`${file}:${index + 1}: non-English text`)
+    })
+  }
+}
+
 const hasTests = dir =>
   readdirSync(dir, { recursive: true }).some(
     file => typeof file === 'string' && /\.test\.tsx?$/.test(file) && !file.includes('node_modules'),
@@ -102,6 +122,8 @@ const hasTests = dir =>
 
 console.log('▶ layout')
 const allPlugins = checkLayout()
+console.log('▶ english')
+checkEnglishOnly()
 const selected = process.argv.slice(2)
 for (const name of selected) {
   if (!allPlugins.includes(name)) fail(`unknown plugin ${name}`)
