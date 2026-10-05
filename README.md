@@ -1,48 +1,47 @@
 # vp-cc-mods
 
-Claude Code [mods](https://code.claude.com/docs/en/plugins/mods/overview) by VdustR, published as a plugin marketplace named `vp-cc-mods`.
+VdustR's personal collection of Claude Code [mods](https://code.claude.com/docs/en/plugins/mods/overview) and Claude Code-only skills, in one repository that is also a plugin marketplace.
 
-Mods require Claude Code v2.1.287 or later. The Desktop app's bundled engine 2.1.286 also loads them.
+## Why
+
+Mods change how Claude Code itself looks and behaves: they draw above the prompt, add commands, react to turns and tool calls, and call the model. Keeping them in one marketplace means one place to install from, one naming scheme, and one way to test and release them.
+
+- **One install source.** Add the marketplace once, then install only the plugins you want.
+- **No name collisions.** Every plugin and skill is prefixed `vp-cc-`, so it never clashes with another plugin or with skills shared across other agents.
+- **Small, independent plugins.** Each feature is its own plugin with its own version, README and tests, so you can enable, disable or update one without touching the rest.
 
 ## Plugins
 
-| Plugin | What it does |
-| :- | :- |
-| [`vp-cc-brief`](plugins/vp-cc-brief) | An ADHD-friendly session recap above the prompt. It leads with the one next step, shows the goal in one line, and keeps finished items behind a toggle. `/vp-cc-brief` shows it on demand. After a turn ends, it is prepared automatically once you have been idle for `idleMinutes` (default 5, `0` turns it off). |
+| Plugin | Value | Docs |
+| :- | :- | :- |
+| `vp-cc-recap` | After a break, see the one next step and start it with one keypress. The recap appears above the prompt on demand or after you have been idle. | [README](plugins/vp-cc-recap/README.md) |
 
 ## Install
 
-Add the marketplace, then install a plugin:
+Mods need Claude Code v2.1.287 or later. The Desktop app's bundled engine 2.1.286 also loads them.
 
-```text
-/plugin marketplace add VdustR/vp-cc-mods
-/plugin install vp-cc-brief@vp-cc-mods
-```
+1. Add the marketplace:
+   ```text
+   /plugin marketplace add VdustR/vp-cc-mods
+   ```
+2. Install a plugin:
+   ```text
+   /plugin install vp-cc-recap@vp-cc-mods
+   ```
+3. Check that it loaded: run `/plugin` and open the **Installed** tab.
 
-An install from GitHub is cached by version, so a change reaches you after the plugin's `version` increases and you update it.
+An install from GitHub is cached by version. To get a change, update the marketplace and the plugin after its `version` increases.
 
-## Develop
+## Develop locally
 
-Add the marketplace from a local clone instead. Its plugins then load in place from the clone, and an edit takes effect at the next session start or after `/reload-plugins`, with no version bump:
+Add the marketplace from a local clone instead of GitHub. Its plugins then load in place from the clone, and an edit takes effect at the next session start or after `/reload-plugins`, with no version bump:
 
 ```text
 /plugin marketplace add ~/repo/VdustR/vp-cc-mods
-/plugin install vp-cc-brief@vp-cc-mods
+/plugin install vp-cc-recap@vp-cc-mods
 ```
 
-Check a plugin before you commit:
-
-```bash
-claude plugin validate .
-claude plugin validate plugins/vp-cc-brief
-cd plugins/vp-cc-brief && claude plugin test
-```
-
-## Conventions
-
-- Every plugin and skill name starts with `vp-cc-`, so it does not collide with other plugins or with skills shared across agents.
-- Each plugin lives in `plugins/<name>/` and has an entry in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
-- Claude Code writes type declarations into `.claude-plugin/types/` and a `tsconfig.json` inside a mod it loads from disk. Both are ignored.
+[AGENTS.md](AGENTS.md) describes the layout, naming rules, checks and release steps for maintaining this repository.
 
 ## License
 

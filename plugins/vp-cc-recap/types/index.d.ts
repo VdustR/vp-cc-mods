@@ -1,8 +1,8 @@
-/** What started a brief. */
-export type BriefTrigger = 'manual' | 'idle'
+/** What started a recap. */
+export type RecapTrigger = 'manual' | 'idle'
 
 /** The recap the model returns, parsed from its JSON reply. */
-export type BriefContent = {
+export type RecapContent = {
   /** The one action the person can take now. */
   next: string
   /** Who carries out `next`: Claude, from a prompt, or the person themselves. */
@@ -16,25 +16,25 @@ export type BriefContent = {
 }
 
 /** What the band above the prompt shows. */
-export type BriefView =
+export type RecapView =
   | { phase: 'hidden' }
-  | { phase: 'generating'; trigger: BriefTrigger }
+  | { phase: 'generating'; trigger: RecapTrigger }
   | {
       phase: 'shown'
-      trigger: BriefTrigger
+      trigger: RecapTrigger
       /** Parsed recap; absent when the reply was not the expected JSON. */
-      content?: BriefContent
+      content?: RecapContent
       /** The reply as written, drawn when `content` is absent. */
       raw: string
       /** When the last main-thread turn ended, in clock milliseconds. */
       lastTurnAt?: number
     }
-  | { phase: 'error'; trigger: BriefTrigger; reason: string }
+  | { phase: 'error'; trigger: RecapTrigger; reason: string }
 
 declare module 'claude-code' {
   interface PluginState {
-    'vp-cc-brief': {
-      view: BriefView
+    'vp-cc-recap': {
+      view: RecapView
       /** Whether the band shows the finished items too. */
       isExpanded: boolean
     }

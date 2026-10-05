@@ -25,10 +25,10 @@ const engineBand = (on: Parameters<Parameters<typeof test>[1]>[1]) => {
   })
 }
 
-test('/vp-cc-brief leads with the next step and fills it into the prompt', async ($, on) => {
+test('/vp-cc-recap leads with the next step and fills it into the prompt', async ($, on) => {
   engineBand(on)
   const reply = JSON.stringify({
-    next: '把 brief 搬到 ~/mods',
+    next: '把 recap 搬到 ~/mods',
     next_by: 'claude',
     goal: '做 ADHD 友善的 recap',
     done: ['改成先講下一步', '加上詳細切換'],
@@ -42,20 +42,20 @@ test('/vp-cc-brief leads with the next step and fills it into the prompt', async
   })
 
   for (const surface of SURFACES) {
-    const band = await $.ui.mount({ plugin: 'vp-cc-brief', surface, ...BAND })
-    const answer = await $.command.run({ command: 'vp-cc-brief', args: '' })
+    const band = await $.ui.mount({ plugin: 'vp-cc-recap', surface, ...BAND })
+    const answer = await $.command.run({ command: 'vp-cc-recap', args: '' })
     expect(answer.text).toBeUndefined()
 
     const compact = JSON.stringify(await band.drawn())
     expect(compact).toContain('⏭ 交給 Claude')
-    expect(compact).toContain('把 brief 搬到 ~/mods')
+    expect(compact).toContain('把 recap 搬到 ~/mods')
     expect(compact).not.toContain('改成先講下一步')
 
     await band.press({ key: 'more' })
     expect(JSON.stringify(await band.drawn())).toContain('改成先講下一步')
 
     await band.press({ key: 'start' })
-    expect(filled.at(-1)).toBe('把 brief 搬到 ~/mods')
+    expect(filled.at(-1)).toBe('把 recap 搬到 ~/mods')
     expect(await band.find({ type: 'Text', text: /engine band/ })).toBeDefined()
     await band.unmount()
   }
@@ -63,7 +63,7 @@ test('/vp-cc-brief leads with the next step and fills it into the prompt', async
 
 test("the person's own step reports back instead of prompting Claude", async ($, on) => {
   engineBand(on)
-  const reply = JSON.stringify({ next: '在 Desktop 按 1 試試', next_by: 'user', goal: '驗證 brief', done: [] })
+  const reply = JSON.stringify({ next: '在 Desktop 按 1 試試', next_by: 'user', goal: '驗證 recap', done: [] })
   on('model.fork', () => ({ value: { isAnswered: true, text: reply, usage: USAGE } }))
   const filled: string[] = []
   on('prompt.read', () => ({ value: { text: '', cursor: 0 } }))
@@ -73,8 +73,8 @@ test("the person's own step reports back instead of prompting Claude", async ($,
   })
 
   for (const surface of SURFACES) {
-    const band = await $.ui.mount({ plugin: 'vp-cc-brief', surface, ...BAND })
-    await $.command.run({ command: 'vp-cc-brief', args: '' })
+    const band = await $.ui.mount({ plugin: 'vp-cc-recap', surface, ...BAND })
+    await $.command.run({ command: 'vp-cc-recap', args: '' })
     const tree = JSON.stringify(await band.drawn())
     expect(tree).toContain('⏭ 你的下一步')
     expect(tree).toContain('做完了')
@@ -90,8 +90,8 @@ test('a waiting decision outranks the next step', async ($, on) => {
   on('model.fork', () => ({ value: { isAnswered: true, text: reply, usage: USAGE } }))
 
   for (const surface of SURFACES) {
-    const band = await $.ui.mount({ plugin: 'vp-cc-brief', surface, ...BAND })
-    await $.command.run({ command: 'vp-cc-brief', args: '' })
+    const band = await $.ui.mount({ plugin: 'vp-cc-recap', surface, ...BAND })
+    await $.command.run({ command: 'vp-cc-recap', args: '' })
     const tree = JSON.stringify(await band.drawn())
     expect(tree).toContain('⚠ 等你決定')
     expect(tree).toContain('要不要刪掉舊版？')
@@ -106,21 +106,21 @@ test('a reply that is not JSON still shows as markdown', async ($, on) => {
   on('model.fork', () => ({ value: { isAnswered: true, text: '**下一步**：看看', usage: USAGE } }))
 
   for (const surface of SURFACES) {
-    const band = await $.ui.mount({ plugin: 'vp-cc-brief', surface, ...BAND })
-    await $.command.run({ command: 'vp-cc-brief', args: '' })
+    const band = await $.ui.mount({ plugin: 'vp-cc-recap', surface, ...BAND })
+    await $.command.run({ command: 'vp-cc-recap', args: '' })
     expect(JSON.stringify(await band.drawn())).toContain('看看')
     await band.press({ key: 'dismiss' })
     await band.unmount()
   }
 })
 
-test('/vp-cc-brief explains when there is nothing to recap yet', async ($, on) => {
+test('/vp-cc-recap explains when there is nothing to recap yet', async ($, on) => {
   engineBand(on)
   on('model.fork', () => ({ value: { isAnswered: false, reason: 'nothing-to-fork' } }))
 
   for (const surface of SURFACES) {
-    const band = await $.ui.mount({ plugin: 'vp-cc-brief', surface, ...BAND })
-    await $.command.run({ command: 'vp-cc-brief', args: '' })
+    const band = await $.ui.mount({ plugin: 'vp-cc-recap', surface, ...BAND })
+    await $.command.run({ command: 'vp-cc-recap', args: '' })
     expect(JSON.stringify(await band.drawn())).toContain('還沒有可以整理的內容')
     await band.press({ key: 'dismiss' })
     await band.unmount()

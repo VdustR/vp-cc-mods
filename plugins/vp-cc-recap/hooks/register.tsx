@@ -1,15 +1,15 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
-import type { BriefContent, BriefTrigger, BriefView } from '../types'
+import type { RecapContent, RecapTrigger, RecapView } from '../types'
 
-const HIDDEN: BriefView = { phase: 'hidden' }
-const view = atom({ plugin: 'vp-cc-brief', key: 'view' } as const, HIDDEN)
-const isExpanded = atom({ plugin: 'vp-cc-brief', key: 'isExpanded' } as const, false)
+const HIDDEN: RecapView = { phase: 'hidden' }
+const view = atom({ plugin: 'vp-cc-recap', key: 'view' } as const, HIDDEN)
+const isExpanded = atom({ plugin: 'vp-cc-recap', key: 'isExpanded' } as const, false)
 
 // The one user message the fork answers. It reads the whole session from the
 // main thread's cached prefix, so only this message and the reply are new.
-const BRIEF_PROMPT = `The user is coming back to this session after a break and has trouble holding context (ADHD). Write a recap that gets them moving again.
+const RECAP_PROMPT = `The user is coming back to this session after a break and has trouble holding context (ADHD). Write a recap that gets them moving again.
 
 Reply with one JSON object and nothing else, no code fence:
 {"next": "...", "next_by": "claude", "waiting": "...", "goal": "...", "done": ["..."]}
@@ -25,7 +25,7 @@ Write in Traditional Chinese. State outcomes, not process. No tool names, file p
 const asText = (value: unknown, limit: number) =>
   typeof value === 'string' ? value.trim().slice(0, limit) : ''
 
-function parseBrief(reply: string): BriefContent | undefined {
+function parseRecap(reply: string): RecapContent | undefined {
   const start = reply.indexOf('{')
   const end = reply.lastIndexOf('}')
   if (start === -1 || end <= start) return undefined
@@ -47,13 +47,13 @@ function parseBrief(reply: string): BriefContent | undefined {
   }
 }
 
-async function makeBrief($: EngineInterface, trigger: BriefTrigger, lastTurnAt: number | undefined) {
+async function makeRecap($: EngineInterface, trigger: RecapTrigger, lastTurnAt: number | undefined) {
   await update($, view, () => ({ phase: 'generating', trigger }))
   await update($, isExpanded, () => false)
-  const reply = await $.model.fork({ prompt: BRIEF_PROMPT })
+  const reply = await $.model.fork({ prompt: RECAP_PROMPT })
   if (reply.isAnswered && reply.text.trim() !== '') {
     const raw = reply.text.trim()
-    const content = parseBrief(raw)
+    const content = parseRecap(raw)
     await update($, view, () => ({ phase: 'shown', trigger, raw, content, lastTurnAt }))
     return
   }
@@ -78,7 +78,7 @@ async function startNext($: EngineInterface, text: string) {
     box.text.trim() === '' ? { text } : { text: `\n${text}`, mode: 'append' },
   )
   if (!filled.isFilled) {
-    $.ui.toast('vp-cc-brief: 輸入框暫時不能填入，請手動輸入下一步')
+    $.ui.toast('vp-cc-recap: 輸入框暫時不能填入，請手動輸入下一步')
     return
   }
   await update($, view, () => HIDDEN)
@@ -100,7 +100,7 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
-      name: 'vp-cc-brief',
+      name: 'vp-cc-recap',
       description: 'Show where this session stands and the one next step, above the prompt',
     })
 
@@ -108,12 +108,12 @@ export const register: Register = (on, options) => {
   })
 
   // No transcript line: the band is the answer, and nothing reaches the model.
-  on('command.run', { command: 'vp-cc-brief' }, async $ => {
+  on('command.run', { command: 'vp-cc-recap' }, async $ => {
     stopIdleTimer()
     if (!isGenerating) {
       isGenerating = true
       try {
-        await makeBrief($, 'manual', lastTurnAt)
+        await makeRecap($, 'manual', lastTurnAt)
       } finally {
         isGenerating = false
       }
@@ -122,7 +122,7 @@ export const register: Register = (on, options) => {
     return {}
   })
 
-  // New work makes a shown brief stale: hide it, then prepare a fresh one once
+  // New work makes a shown recap stale: hide it, then prepare a fresh one once
   // the person has been idle for `idleMinutes`.
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
@@ -140,7 +140,7 @@ export const register: Register = (on, options) => {
         idleTimer = undefined
         if (isGenerating) return
         isGenerating = true
-        void makeBrief($, 'idle', lastTurnAt).finally(() => {
+        void makeRecap($, 'idle', lastTurnAt).finally(() => {
           isGenerating = false
         })
       })
@@ -149,7 +149,7 @@ export const register: Register = (on, options) => {
     return done
   })
 
-  // The person is back and acting: drop the timer and the brief.
+  // The person is back and acting: drop the timer and the recap.
   on('prompt.submit', async ($, e, next) => {
     stopIdleTimer()
     const current = await read($, view)
@@ -165,7 +165,7 @@ export const register: Register = (on, options) => {
     if (current.phase === 'hidden' || e.props.hasSurvey) {
       return next(e)
     }
-    // An idle brief prepares quietly; only one the person asked for shows progress.
+    // An idle recap prepares quietly; only one the person asked for shows progress.
     if (current.phase === 'generating' && current.trigger === 'idle') {
       return next(e)
     }

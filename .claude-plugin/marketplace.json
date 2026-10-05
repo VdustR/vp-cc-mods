@@ -8,8 +8,8 @@
   },
   "plugins": [
     {
-      "name": "vp-cc-brief",
-      "source": "./plugins/vp-cc-brief",
+      "name": "vp-cc-recap",
+      "source": "./plugins/vp-cc-recap",
       "description": "An ADHD-friendly session recap above the prompt, on demand and after you have been idle.",
       "keywords": ["mod", "recap", "adhd", "focus"]
     }
