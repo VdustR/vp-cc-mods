@@ -1,31 +1,78 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
-import type { RecapContent, RecapTrigger, RecapView } from '../types'
+import type { RecapContent, RecapLabels, RecapTrigger, RecapView } from '../types'
 
 const HIDDEN: RecapView = { phase: 'hidden' }
+
+// English defaults. The model sends these back translated into the user's
+// language with each recap; a missing or malformed label keeps its default.
+const DEFAULT_LABELS: RecapLabels = {
+  handToClaude: 'Hand to Claude',
+  yourStep: 'Your next step',
+  waiting: 'Waiting on you',
+  then: 'Then',
+  start: 'Start',
+  done: 'Done',
+  reply: 'Reply',
+  details: 'Details',
+  less: 'Less',
+  dismiss: 'Dismiss',
+  lastReplyJustNow: 'Last reply just now',
+  lastReplyMinutesAgo: 'Last reply {n} min ago',
+  doneFill: 'I finished: {step}',
+  replyFill: 'About "{question}": ',
+  preparing: 'Preparing recap…',
+  nothingYet: 'Nothing to recap in this session yet',
+  failed: 'Recap failed',
+  fillFailed: 'Could not fill the prompt box; type the next step yourself',
+}
+
+// Placeholders a label must keep, so a translation cannot drop the value.
+const REQUIRED_PLACEHOLDERS: Partial<Record<keyof RecapLabels, string>> = {
+  lastReplyMinutesAgo: '{n}',
+  doneFill: '{step}',
+  replyFill: '{question}',
+}
+
 const view = atom({ plugin: 'vp-cc-recap', key: 'view' } as const, HIDDEN)
 const isExpanded = atom({ plugin: 'vp-cc-recap', key: 'isExpanded' } as const, false)
+const labels = atom({ plugin: 'vp-cc-recap', key: 'labels' } as const, DEFAULT_LABELS)
 
 // The one user message the fork answers. It reads the whole session from the
 // main thread's cached prefix, so only this message and the reply are new.
 const RECAP_PROMPT = `The user is coming back to this session after a break and has trouble holding context (ADHD). Write a recap that gets them moving again.
 
 Reply with one JSON object and nothing else, no code fence:
-{"next": "...", "next_by": "claude", "waiting": "...", "goal": "...", "done": ["..."]}
+{"next": "...", "next_by": "claude", "waiting": "...", "goal": "...", "done": ["..."], "ui": ${JSON.stringify(DEFAULT_LABELS)}}
 
-- next: exactly one concrete next step, at most 40 characters.
+- next: exactly one concrete next step, one short phrase.
 - next_by: "claude" when the step is work for you, written as an instruction the user could send you; "user" when the user does it themselves (try, check, decide, run something), written as an instruction to the user.
-- waiting: only when you are blocked on the user's decision or approval, the question in at most 40 characters; otherwise omit the key.
-- goal: what this session is working toward, one sentence, at most 40 characters.
-- done: at most 3 finished items, each at most 25 characters, newest first.
+- waiting: only when you are blocked on the user's decision or approval, the question as one short phrase; otherwise omit the key.
+- goal: what this session is working toward, one short sentence.
+- done: at most 3 finished items, each a few words, newest first.
+- ui: the interface labels above, translated into the user's language. Keep every {placeholder} exactly as written. Keep them as short as the English.
 
-Write in Traditional Chinese. State outcomes, not process. No tool names, file paths or ids unless the next step needs one.`
+Language: write every value, ui labels included, in the language the user has mostly written in during this session. State outcomes, not process. No tool names, file paths or ids unless the next step needs one.`
 
 const asText = (value: unknown, limit: number) =>
   typeof value === 'string' ? value.trim().slice(0, limit) : ''
 
-function parseRecap(reply: string): RecapContent | undefined {
+function parseLabels(value: unknown): RecapLabels {
+  if (typeof value !== 'object' || value === null) return DEFAULT_LABELS
+  const given = value as Record<string, unknown>
+  const result: RecapLabels = { ...DEFAULT_LABELS }
+  for (const key of Object.keys(DEFAULT_LABELS) as (keyof RecapLabels)[]) {
+    const text = typeof given[key] === 'string' ? (given[key] as string).slice(0, 80) : ''
+    const placeholder = REQUIRED_PLACEHOLDERS[key]
+    if (text.trim() !== '' && (placeholder === undefined || text.includes(placeholder))) {
+      result[key] = text
+    }
+  }
+  return result
+}
+
+function parseRecap(reply: string): { content: RecapContent; labels: RecapLabels } | undefined {
   const start = reply.indexOf('{')
   const end = reply.lastIndexOf('}')
   if (start === -1 || end <= start) return undefined
@@ -41,7 +88,9 @@ function parseRecap(reply: string): RecapContent | undefined {
     const done = Array.isArray(fields.done)
       ? fields.done.map(item => asText(item, 80)).filter(item => item !== '').slice(0, 3)
       : []
-    return waiting === '' ? { next, nextBy, goal, done } : { next, nextBy, waiting, goal, done }
+    const content: RecapContent =
+      waiting === '' ? { next, nextBy, goal, done } : { next, nextBy, waiting, goal, done }
+    return { content, labels: parseLabels(fields.ui) }
   } catch {
     return undefined
   }
@@ -53,32 +102,33 @@ async function makeRecap($: EngineInterface, trigger: RecapTrigger, lastTurnAt: 
   const reply = await $.model.fork({ prompt: RECAP_PROMPT })
   if (reply.isAnswered && reply.text.trim() !== '') {
     const raw = reply.text.trim()
-    const content = parseRecap(raw)
-    await update($, view, () => ({ phase: 'shown', trigger, raw, content, lastTurnAt }))
+    const parsed = parseRecap(raw)
+    if (parsed !== undefined) {
+      await update($, labels, () => parsed.labels)
+    }
+    await update($, view, () => ({ phase: 'shown', trigger, raw, content: parsed?.content, lastTurnAt }))
     return
   }
   if (!reply.isAnswered && reply.reason === 'nothing-to-fork') {
     await update($, view, () =>
-      trigger === 'manual'
-        ? { phase: 'error', trigger, reason: '這個 session 還沒有可以整理的內容' }
-        : HIDDEN,
+      trigger === 'manual' ? { phase: 'error', trigger, reason: 'nothing-yet' } : HIDDEN,
     )
     return
   }
-  const reason = reply.isAnswered ? 'empty-reply' : reply.reason
+  const detail = reply.isAnswered ? 'empty-reply' : reply.reason
   await update($, view, () =>
-    trigger === 'manual' ? { phase: 'error', trigger, reason: `整理失敗（${reason}）` } : HIDDEN,
+    trigger === 'manual' ? { phase: 'error', trigger, reason: 'failed', detail } : HIDDEN,
   )
 }
 
 /** Puts the next step in the prompt box without overwriting a draft, then hides the band. */
-async function startNext($: EngineInterface, text: string) {
+async function startNext($: EngineInterface, text: string, fillFailed: string) {
   const box = await $.prompt.read()
   const filled = await $.prompt.fill(
     box.text.trim() === '' ? { text } : { text: `\n${text}`, mode: 'append' },
   )
   if (!filled.isFilled) {
-    $.ui.toast('vp-cc-recap: 輸入框暫時不能填入，請手動輸入下一步')
+    $.ui.toast(`vp-cc-recap: ${fillFailed}`)
     return
   }
   await update($, view, () => HIDDEN)
@@ -171,21 +221,25 @@ export const register: Register = (on, options) => {
     }
 
     const { Box, Text, Button, Markdown } = $.ui.resolve(e)
+    const text = await read($, labels)
     const hide = () => update($, view, () => HIDDEN)
+    const dismiss = <Button key="dismiss" label={text.dismiss} hotkey="3" plain dimColor onPress={hide} />
 
     if (current.phase === 'generating') {
       return (
         <Box>
-          <Text dimColor>⏳ 正在整理進度…</Text>
+          <Text dimColor>⏳ {text.preparing}</Text>
         </Box>
       )
     }
 
     if (current.phase === 'error') {
+      const message =
+        current.reason === 'nothing-yet' ? text.nothingYet : `${text.failed} (${current.detail ?? 'unknown'})`
       return (
         <Box gap={2}>
-          <Text dimColor>{current.reason}</Text>
-          <Button key="dismiss" label="收起" hotkey="3" plain dimColor onPress={hide} />
+          <Text dimColor>{message}</Text>
+          {dismiss}
         </Box>
       )
     }
@@ -193,13 +247,14 @@ export const register: Register = (on, options) => {
     const content = current.content
     const expanded = await read($, isExpanded)
     const ago = minutesAgo(await $.clock.now(), current.lastTurnAt)
-    const footer = ago === undefined ? '' : ago === 0 ? '上次回覆是剛剛' : `上次回覆是 ${ago} 分鐘前`
+    const footer =
+      ago === undefined ? '' : ago === 0 ? text.lastReplyJustNow : text.lastReplyMinutesAgo.replace('{n}', () => String(ago))
 
     if (content === undefined) {
       return (
         <Box flexDirection="column">
           <Markdown text={current.raw.slice(0, 10_000)} />
-          <Button key="dismiss" label="收起" hotkey="3" plain dimColor onPress={hide} />
+          {dismiss}
         </Box>
       )
     }
@@ -209,20 +264,32 @@ export const register: Register = (on, options) => {
     // after the person's own step, or an answer to the waiting question.
     const primary =
       content.waiting !== undefined
-        ? { label: '⚠ 等你決定', text: content.waiting, button: '回覆', fill: `關於「${content.waiting}」：` }
+        ? {
+            label: `⚠ ${text.waiting}`,
+            text: content.waiting,
+            button: text.reply,
+            fill: text.replyFill.replace('{question}', () => content.waiting ?? ''),
+          }
         : content.nextBy === 'user'
-          ? { label: '⏭ 你的下一步', text: content.next, button: '做完了', fill: `我做完了：${content.next}` }
-          : { label: '⏭ 交給 Claude', text: content.next, button: '開始', fill: content.next }
+          ? {
+              label: `⏭ ${text.yourStep}`,
+              text: content.next,
+              button: text.done,
+              fill: text.doneFill.replace('{step}', () => content.next),
+            }
+          : { label: `⏭ ${text.handToClaude}`, text: content.next, button: text.start, fill: content.next }
 
     return (
       <Box flexDirection="column">
         <Text>
-          <Text bold>{primary.label}：</Text>
+          <Text bold>{primary.label}: </Text>
           <Text bold>{primary.text}</Text>
         </Text>
         <Text dimColor>🎯 {content.goal}</Text>
         {expanded && content.waiting !== undefined && (
-          <Text dimColor>⏭ 之後：{content.next}</Text>
+          <Text dimColor>
+            ⏭ {text.then}: {content.next}
+          </Text>
         )}
         {expanded &&
           content.done.map(item => (
@@ -234,17 +301,17 @@ export const register: Register = (on, options) => {
             label={primary.button}
             hotkey="1"
             plain
-            onPress={() => startNext($, primary.fill)}
+            onPress={() => startNext($, primary.fill, text.fillFailed)}
           />
           <Button
             key="more"
-            label={expanded ? '精簡' : '詳細'}
+            label={expanded ? text.less : text.details}
             hotkey="2"
             plain
             dimColor
             onPress={() => update($, isExpanded, value => !value)}
           />
-          <Button key="dismiss" label="收起" hotkey="3" plain dimColor onPress={hide} />
+          {dismiss}
           {footer !== '' && <Text dimColor>{footer}</Text>}
         </Box>
       </Box>
