@@ -90,23 +90,6 @@ export function parseLanguage(reply: unknown): string | undefined {
   return typeof tag === 'string' && LANGUAGE_TAG.test(tag) ? tag : undefined
 }
 
-const HANGUL = /[\uac00-\ud7af\u1100-\u11ff]/
-const KANA = /[\u3040-\u30ff]/
-const HAN = /[\u3400-\u9fff\uf900-\ufaff]/
-
-/**
- * The language a speech voice should read `text` in. A line can mix the
- * labels' language with what the person typed (an English "Time's up:" and a
- * task in Chinese), and a voice of one script reads another as noise, so
- * Hangul, kana and Han characters in the text win over the labels' `lang`.
- */
-export function speechLanguage(text: string, lang: string | undefined): string | undefined {
-  if (HANGUL.test(text)) return 'ko'
-  if (KANA.test(text)) return 'ja'
-  if (HAN.test(text)) return lang !== undefined && /^(zh|ja)(-|$)/i.test(lang) ? lang : 'zh'
-  return lang
-}
-
 // Script subtags that name a region's usual locale for a speech voice.
 const SCRIPT_LOCALES: { readonly [tag: string]: string } = {
   'zh-hant': 'zh_tw',
