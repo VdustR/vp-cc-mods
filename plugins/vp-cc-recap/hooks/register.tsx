@@ -221,26 +221,34 @@ export const register: Register = (on, options) => {
     }
 
     const { Box, Text, Button, Markdown } = $.ui.resolve(e)
+    // The band is shared: draw above what the other plugins and the engine draw.
+    const below = await next(e)
+    const stack = (tree: JSX.Element) => (
+      <Box flexDirection="column">
+        {tree}
+        {below}
+      </Box>
+    )
     const text = await read($, labels)
     const hide = () => update($, view, () => HIDDEN)
     const dismiss = <Button key="dismiss" label={text.dismiss} hotkey="3" plain dimColor onPress={hide} />
 
     if (current.phase === 'generating') {
-      return (
+      return stack(
         <Box>
           <Text dimColor>⏳ {text.preparing}</Text>
-        </Box>
+        </Box>,
       )
     }
 
     if (current.phase === 'error') {
       const message =
         current.reason === 'nothing-yet' ? text.nothingYet : `${text.failed} (${current.detail ?? 'unknown'})`
-      return (
+      return stack(
         <Box gap={2}>
           <Text dimColor>{message}</Text>
           {dismiss}
-        </Box>
+        </Box>,
       )
     }
 
@@ -251,11 +259,11 @@ export const register: Register = (on, options) => {
       ago === undefined ? '' : ago === 0 ? text.lastReplyJustNow : text.lastReplyMinutesAgo.replace('{n}', () => String(ago))
 
     if (content === undefined) {
-      return (
+      return stack(
         <Box flexDirection="column">
           <Markdown text={current.raw.slice(0, 10_000)} />
           {dismiss}
-        </Box>
+        </Box>,
       )
     }
 
@@ -279,7 +287,7 @@ export const register: Register = (on, options) => {
             }
           : { label: `⏭ ${text.handToClaude}`, text: content.next, button: text.start, fill: content.next }
 
-    return (
+    return stack(
       <Box flexDirection="column">
         <Text>
           <Text bold>{primary.label}: </Text>
@@ -314,7 +322,7 @@ export const register: Register = (on, options) => {
           {dismiss}
           {footer !== '' && <Text dimColor>{footer}</Text>}
         </Box>
-      </Box>
+      </Box>,
     )
   })
 }
