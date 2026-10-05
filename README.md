@@ -32,16 +32,16 @@ Mods need Claude Code v2.1.287 or later. The Desktop app's bundled engine 2.1.28
 
 An install from GitHub is cached by version. To get a change, update the marketplace and the plugin after its `version` increases.
 
-## Develop locally
+## Develop
 
-Add the marketplace from a local clone instead of GitHub. Its plugins then load in place from the clone, and an edit takes effect at the next session start or after `/reload-plugins`, with no version bump:
+The local clone is installed as a local-path marketplace, so its plugins load in place, and an edit takes effect at the next session start or after `/reload-plugins`, with no version bump:
 
 ```text
 /plugin marketplace add ~/repo/VdustR/vp-cc-mods
 /plugin install vp-cc-recap@vp-cc-mods
 ```
 
-[AGENTS.md](AGENTS.md) describes the layout, naming rules, checks and release steps for maintaining this repository.
+Work happens on a branch in a separate worktree. Before a pull request, run the automated checks (`node scripts/check.mjs`, also run by CI) and try the change in the terminal (`claude --plugin-dir`) and in the Desktop app. [AGENTS.md](AGENTS.md) describes the full development flow, the naming rules and the release steps.
 
 ## License
 

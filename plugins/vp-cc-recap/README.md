@@ -67,9 +67,11 @@ Set it in `/plugin` (installed copy), or in `settings.json` under `pluginConfigs
 
 ## Develop
 
+From the repository root:
+
 ```bash
-claude plugin validate .
-claude plugin test
+node scripts/check.mjs vp-cc-recap      # layout, validate and tests
+claude --plugin-dir plugins/vp-cc-recap # try the branch copy in the terminal
 ```
 
-The tests mount the band on the `terminal` and `desktop` surfaces and stub the model, the clock and the prompt box. See the repository [AGENTS.md](../../AGENTS.md) for the maintenance workflow.
+The tests mount the band on the `terminal` and `desktop` surfaces and stub the model, the clock and the prompt box. See the repository [AGENTS.md](../../AGENTS.md) for the full development flow, including the Desktop check.
