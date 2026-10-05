@@ -90,7 +90,7 @@ Read these before writing a new kind of mod. The type declarations for the runni
 - [Reference](https://code.claude.com/docs/en/plugins/mods/reference): every event, method, render site and element per app, and the limits.
 - [Test](https://code.claude.com/docs/en/plugins/mods/test): the `claude-code/testing` kit.
 - [Troubleshoot](https://code.claude.com/docs/en/plugins/mods/troubleshoot): load failures, skipped hooks, drawings that do not appear.
-- [Plugin evals](https://code.claude.com/docs/en/plugin-evals): `claude plugin eval`, behavior tests that run a real model and cost real usage.
+- [Plugin evals](https://code.claude.com/docs/en/plugin-evals): `claude plugin eval`, behavior tests that run real model sessions. They can consume many tokens, so run them only when the repository owner asks; `claude plugin test` is the default check.
 - The built-in `plugin-authoring` skill: run `/plugin-authoring` or ask Claude for a mod; it names the type declarations for the running build.
 - Example mods with tests: the [built-in mods](https://github.com/anthropics/claude-code/tree/main/mods) (`diff`, `agents-md`, `sec-default`, `telemetry`) and the [playground mods](https://github.com/anthropics/claude-code-playground/tree/main/claude-code/mods) (`token-weather`, `blast-radius`, `replay-theater`).
 
