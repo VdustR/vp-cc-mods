@@ -51,6 +51,7 @@ To prototype, ask Claude in any session for a mod (the built-in `plugin-authorin
 - Keep anything that must survive a reload in `$.state` (this session) or `$.store` (across sessions). Module variables reset on every reload.
 - Do not send anything to the model or the transcript that the feature does not need. A `command.run` hook that has nothing to print returns `{}`.
 - The band above the prompt (`AbovePrompt`) is one site that every mod shares, and a tree returned without the rest of the chain hides every mod drawn after it. Always stack: `const below = await next(e)`, then return `<Box flexDirection="column">{mine}{below}</Box>`, or `below` alone when there is nothing to show.
+- Draw a plugin's band block behind its name tag, so the person can tell the blocks apart: put `<Text inverse bold>{' <short name> '}</Text>` (the plugin name without `vp-cc-`) and the block side by side in a `<Box gap={1} alignItems="flex-start">`. The tag is never translated and never drawn alone.
 - Give every Button a key prefixed with the plugin's short name (`park:toggle`), and take hotkeys only from the table below, so two plugins drawing at once never claim the same key.
 - Every session on the machine shares a plugin's `$.store`, and a read followed by a write is not atomic. Keep each record under its own key (`item:<id>`) and read again right before a write.
 - `$.ui.status` raised no error in the Desktop app, but nothing appeared under the prompt there (checked on engine 2.1.286). Draw in the band instead.

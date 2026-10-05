@@ -192,10 +192,14 @@ export const register: Register = (on, options) => {
 
     const { Box, Text, Button } = $.ui.resolve(e)
     const text = await read($, labels)
-    // The band is shared: draw above what the other plugins and the engine draw.
+    // The band is shared: draw above what the other plugins and the engine draw,
+    // behind this plugin's name so the person can tell the blocks apart.
     const stack = (tree: JSX.Element) => (
       <Box flexDirection="column">
-        {tree}
+        <Box gap={1} alignItems="flex-start">
+          <Text inverse bold>{' park '}</Text>
+          {tree}
+        </Box>
         {below}
       </Box>
     )

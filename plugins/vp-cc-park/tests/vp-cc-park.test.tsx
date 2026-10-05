@@ -64,6 +64,7 @@ test('/vp-cc-park parks an idea quietly, and Start puts it back in the prompt', 
     expect(collapsed).toContain('🅿 1 parked')
     expect(collapsed).not.toContain('Write the timebox README')
     expect(collapsed).toContain('engine band')
+    expect(await band.find({ type: 'Text', text: ' park ' })).toBeDefined()
 
     await band.press({ key: 'park:toggle' })
     expect(await drawn(band)).toContain('Write the timebox README')
