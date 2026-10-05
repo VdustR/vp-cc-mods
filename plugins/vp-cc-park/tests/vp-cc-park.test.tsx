@@ -186,6 +186,8 @@ test('pickVoice prefers the exact locale and the language\'s own voice', async (
   const { pickVoice } = await import('../hooks/localize')
   expect(pickVoice(VOICES, 'zh-TW')).toBe('Meijia')
   expect(pickVoice(VOICES, 'zh-Hans')).toBe('Tingting')
+  // A bare language takes the first of its own voices.
+  expect(pickVoice(VOICES, 'zh')).toBe('Meijia')
   expect(pickVoice(VOICES, 'de')).toBe('Anna')
   expect(pickVoice(VOICES, 'en')).toBeUndefined()
   expect(pickVoice(VOICES, 'fr')).toBeUndefined()
@@ -198,4 +200,18 @@ test('parseLanguage reads a well-formed _lang tag only', async () => {
   expect(parseLanguage({ _lang: 'zh-TW' })).toBe('zh-TW')
   expect(parseLanguage({ _lang: 'German!' })).toBeUndefined()
   expect(parseLanguage('no json')).toBeUndefined()
+})
+
+test('speechLanguage lets the script of the text win over the label language', async () => {
+  const { speechLanguage } = await import('../hooks/localize')
+  const han = String.fromCharCode(0x6e2c, 0x8a66)
+  const kana = String.fromCharCode(0x3066, 0x3059, 0x3068)
+  const hangul = String.fromCharCode(0xd14c, 0xc2a4, 0xd2b8)
+  expect(speechLanguage(`Time's up: ${han}`, 'en')).toBe('zh')
+  expect(speechLanguage(`Time's up: ${han}`, 'zh-TW')).toBe('zh-TW')
+  expect(speechLanguage(`Time's up: ${han}`, 'ja')).toBe('ja')
+  expect(speechLanguage(kana, 'en')).toBe('ja')
+  expect(speechLanguage(hangul, undefined)).toBe('ko')
+  expect(speechLanguage("Time's up: write tests", 'de')).toBe('de')
+  expect(speechLanguage("Time's up", undefined)).toBeUndefined()
 })
