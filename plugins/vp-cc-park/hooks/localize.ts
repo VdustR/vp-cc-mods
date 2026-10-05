@@ -30,7 +30,7 @@ export function addSample(samples: readonly string[], text: string): string[] {
 export function labelsPrompt(defaults: Labels, samples: readonly string[]): string {
   return `Translate the interface labels of a small tool into the language of the person's messages below.
 
-Reply with one JSON object that has the keys of the labels plus one key "_lang", and nothing else, no code fence. "_lang" is the BCP 47 tag of the language you wrote the labels in, for example "en", "de" or "zh-TW". Keep every {placeholder} exactly as written. Keep each label as short as the English. Keep emoji and punctuation. When the messages are in English or their language is unclear, return the labels unchanged.
+Reply with one JSON object that has exactly the keys of the labels, and nothing else, no code fence. Keep every {placeholder} exactly as written. Keep each label as short as the English. Keep emoji and punctuation. When the messages are in English or their language is unclear, return the labels unchanged.
 
 Messages:
 ${samples.map(sample => `- ${JSON.stringify(sample)}`).join('\n')}
@@ -68,60 +68,6 @@ export function parseLabels<T extends Labels>(reply: unknown, defaults: T): T {
     }
   }
   return result as T
-}
-
-const LANGUAGE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/
-
-/** The BCP 47 tag the model gave for its labels (`_lang`), or undefined. */
-export function parseLanguage(reply: unknown): string | undefined {
-  let given: unknown = reply
-  if (typeof reply === 'string') {
-    const start = reply.indexOf('{')
-    const end = reply.lastIndexOf('}')
-    if (start === -1 || end <= start) return undefined
-    try {
-      given = JSON.parse(reply.slice(start, end + 1))
-    } catch {
-      return undefined
-    }
-  }
-  if (typeof given !== 'object' || given === null) return undefined
-  const tag = (given as Record<string, unknown>)._lang
-  return typeof tag === 'string' && LANGUAGE_TAG.test(tag) ? tag : undefined
-}
-
-// Script subtags that name a region's usual locale for a speech voice.
-const SCRIPT_LOCALES: { readonly [tag: string]: string } = {
-  'zh-hant': 'zh_tw',
-  'zh-hans': 'zh_cn',
-}
-
-/**
- * Picks a speech voice for `lang` from the listing `say -v ?` prints on macOS
- * (`Name (Description) xx_YY  # sample` per line): a voice of the exact locale
- * first, then any voice of the same language, each preferring the language's
- * own voice over the shared novelty voices. Undefined for English, for an
- * unknown language, or when no voice matches, so the system default speaks.
- */
-export function pickVoice(listing: string, lang: string | undefined): string | undefined {
-  if (lang === undefined) return undefined
-  const tag = lang.toLowerCase()
-  if (tag === 'en' || tag.startsWith('en-')) return undefined
-  const locale = SCRIPT_LOCALES[tag] ?? tag.replace(/-/g, '_')
-  const language = locale.split('_')[0]
-  const voices: { name: string; locale: string }[] = []
-  for (const line of listing.split('\n')) {
-    const match = /^(.*\S)\s+([a-z]{2,3}_[A-Za-z0-9]+)\s+#/.exec(line)
-    if (match?.[1] !== undefined && match[2] !== undefined) {
-      voices.push({ name: match[1], locale: match[2].toLowerCase() })
-    }
-  }
-  // A name with a parenthesized language ("Eddy (Chinese (Taiwan))") is one of
-  // the shared novelty voices; a plain name ("Meijia") is the language's own.
-  const isPlain = (voice: { name: string }) => !voice.name.includes(' (')
-  const exact = voices.filter(voice => voice.locale === locale)
-  const same = voices.filter(voice => voice.locale.split('_')[0] === language)
-  return (exact.find(isPlain) ?? exact[0] ?? same.find(isPlain) ?? same[0])?.name
 }
 
 /** Fills each `{name}` in `template` from `values`, leaving unknown ones as written. */

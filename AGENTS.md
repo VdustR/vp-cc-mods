@@ -71,7 +71,7 @@ An installed plugin is copied alone, so it cannot import from outside its own fo
 
 | Canonical file | Copy | What it does |
 | :- | :- | :- |
-| `shared/localize.ts` | `hooks/localize.ts` | Builds the prompt that asks a small model to translate a plugin's labels, using the person's recent prompts as the language sample, and parses the reply with English fallbacks. `parseLanguage` reads the language tag the model returns with the labels, and `pickVoice` turns it into a macOS speech voice for `$.audio.speak`, so spoken lines are read by a voice of their language. The plugin makes the `$.model.complete` call itself, because a hooks module passes `$` only to functions declared in its own file. |
+| `shared/localize.ts` | `hooks/localize.ts` | Builds the prompt that asks a small model to translate a plugin's labels, using the person's recent prompts as the language sample, and parses the reply with English fallbacks. The plugin makes the `$.model.complete` call itself, because a hooks module passes `$` only to functions declared in its own file. |
 
 ### Testing notes
 
