@@ -37,7 +37,7 @@ Claude Code writes `.claude-plugin/types/` and a `tsconfig.json` into a mod it l
 2. Add an entry to `.claude-plugin/marketplace.json` with `name`, `source` (`./plugins/vp-cc-<name>`), `description` and `keywords`.
 3. Write `plugins/vp-cc-<name>/README.md` (see Documentation).
 4. Add a row to the Plugins table in the root `README.md`.
-5. Run the checks below.
+5. Follow the development flow below.
 
 To prototype, ask Claude in any session for a mod (the built-in `plugin-authoring` skill writes it under `~/.claude/dev-mods/<session-id>/` with hot reload), then move it here and rename it to the `vp-cc-` scheme.
 
@@ -50,24 +50,70 @@ To prototype, ask Claude in any session for a mod (the built-in `plugin-authorin
 - Keep anything that must survive a reload in `$.state` (this session) or `$.store` (across sessions). Module variables reset on every reload.
 - Do not send anything to the model or the transcript that the feature does not need. A `command.run` hook that has nothing to print returns `{}`.
 
-## Checks
+## Development flow
 
-Run these from the repository root before every commit. Use the `claude` binary that matches the engine you target; mods need v2.1.287 or later.
+The main clone (`~/repo/VdustR/vp-cc-mods`) is the live install: it is added as a local-path marketplace, so its checkout is what every session runs. Keep it on `main` and do all work on a branch in a separate worktree.
+
+### 1. Branch
 
 ```bash
-claude plugin validate .                      # the marketplace
-claude plugin validate plugins/vp-cc-<name>   # each changed plugin
-(cd plugins/vp-cc-<name> && claude plugin test)
+git -C ~/repo/VdustR/vp-cc-mods fetch
+git -C ~/repo/VdustR/vp-cc-mods worktree add -b <branch> ../vp-cc-mods-worktrees/<branch> origin/main
 ```
 
-- Tests mount drawings on both `terminal` and `desktop`, and stub every `$` call that reaches outside the plugin (`model.fork`, `prompt.fill`, the clock through `mock.clock`).
-- Exercise a behavior change in a real session too. Load the clone as a local marketplace (see README.md) and run `/reload-plugins` after an edit. State in the commit or pull request what you tested manually and what remains untested.
+### 2. Automated checks
 
-## Versioning and release
+Run from the worktree root. This is the same script CI runs, so a local pass predicts the CI result.
 
-- Bump the plugin's `version` in `plugin.json` for every change that should reach installed copies: patch for fixes, minor for new behavior, major for a breaking change to commands, options or state.
-- An install from GitHub is cached by version, so a change without a bump never reaches it. A local-path marketplace loads in place and needs no bump.
-- `main` is the published branch. Merge to `main` only after the checks pass.
+```bash
+node scripts/check.mjs               # every plugin
+node scripts/check.mjs vp-cc-<name>  # only the plugins you changed
+```
+
+It checks the layout rules (prefix, directory and manifest names, marketplace entries, READMEs), runs `claude plugin validate` on the marketplace and each plugin, and runs `claude plugin test` in each plugin with tests. It needs Claude Code 2.1.286 or later, the lowest version it has been run on; set `CLAUDE_BIN` to use a different `claude` executable.
+
+Tests mount drawings on both `terminal` and `desktop`, and stub every `$` call that reaches outside the plugin (`model.fork`, `prompt.fill`, the clock through `mock.clock`).
+
+### 3. Manual check in the terminal
+
+`--plugin-dir` loads the branch's copy and replaces the installed plugin of the same name for that session only:
+
+```bash
+claude --plugin-dir plugins/vp-cc-<name>
+```
+
+Use the feature as a person would. Saving a file reloads the mod in that session. Add `--debug-file <path>` to see load and hook errors; the log line `Plugin "<name>" from --plugin-dir overrides installed version` confirms the branch copy is the one running.
+
+### 4. Manual check in the Desktop app
+
+The Desktop app cannot take `--plugin-dir`, so point the live clone at the branch for the duration of the check, then put it back:
+
+```bash
+git -C ~/repo/VdustR/vp-cc-mods switch --detach <branch>   # the clone must be clean
+# in a Desktop session: /reload-plugins, then use the feature
+git -C ~/repo/VdustR/vp-cc-mods switch main
+# in the Desktop session: /reload-plugins
+```
+
+Do this for any change to drawing or interaction, because the Desktop app draws elements differently from the terminal.
+
+### 5. Version and docs
+
+- Bump the plugin's `version` in `plugin.json` for every change that should reach installed copies: patch for fixes, minor for new behavior, major for a breaking change to commands, options or state. An install from GitHub is cached by version, so a change without a bump never reaches it.
+- Update the plugin README and the root README in the same change.
+
+### 6. Pull request
+
+Open the pull request with the `vp-autodev` workflow: push the branch, open a Draft PR that fills in the template's Verification list, wait for the `Check` workflow on the current head, handle feedback, mark it Ready, and squash-merge when everything is green. State what was verified manually and what was not.
+
+### 7. After merge
+
+```bash
+git -C ~/repo/VdustR/vp-cc-mods pull --ff-only
+git -C ~/repo/VdustR/vp-cc-mods worktree remove ../vp-cc-mods-worktrees/<branch>
+```
+
+Then run `/reload-plugins` in open sessions, or start a new session, so the live install picks up `main`.
 
 ## Documentation
 
