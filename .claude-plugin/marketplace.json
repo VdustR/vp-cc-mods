@@ -1,0 +1,17 @@
+{
+  "name": "vp-cc-mods",
+  "owner": {
+    "name": "VdustR"
+  },
+  "metadata": {
+    "description": "Claude Code mods by VdustR"
+  },
+  "plugins": [
+    {
+      "name": "vp-cc-brief",
+      "source": "./plugins/vp-cc-brief",
+      "description": "An ADHD-friendly session recap above the prompt, on demand and after you have been idle.",
+      "keywords": ["mod", "recap", "adhd", "focus"]
+    }
+  ]
+}
