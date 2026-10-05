@@ -1,0 +1,17 @@
+{
+  "name": "vp-cc-park",
+  "version": "0.1.0",
+  "description": "Park a side idea with /vp-cc-park without leaving your task, and pick it up later from the band above the prompt",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "showCount": {
+      "type": "boolean",
+      "title": "Show the parked count",
+      "description": "Show one dim line above the prompt with how many ideas are parked for this project; off shows the list only after /vp-cc-park",
+      "default": true
+    }
+  },
+  "author": {
+    "name": "VdustR"
+  }
+}

@@ -115,6 +115,22 @@ function checkEnglishOnly() {
   }
 }
 
+// Plugins copy shared helpers into their own folder, because an installed
+// plugin is copied alone. Every copy must equal the canonical file.
+const SHARED = [{ canonical: 'shared/localize.ts', copy: 'hooks/localize.ts' }]
+
+function checkSharedCopies(dirs) {
+  for (const { canonical, copy } of SHARED) {
+    const expected = readFileSync(join(root, canonical), 'utf8')
+    for (const dir of dirs) {
+      const path = join(root, 'plugins', dir, copy)
+      if (existsSync(path) && readFileSync(path, 'utf8') !== expected) {
+        fail(`plugins/${dir}/${copy}: differs from ${canonical}; copy it again`)
+      }
+    }
+  }
+}
+
 const hasTests = dir =>
   readdirSync(dir, { recursive: true }).some(
     file => typeof file === 'string' && /\.test\.tsx?$/.test(file) && !file.includes('node_modules'),
@@ -122,6 +138,8 @@ const hasTests = dir =>
 
 console.log('▶ layout')
 const allPlugins = checkLayout()
+console.log('▶ shared copies')
+checkSharedCopies(allPlugins)
 console.log('▶ english')
 checkEnglishOnly()
 const selected = process.argv.slice(2)

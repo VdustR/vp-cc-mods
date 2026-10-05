@@ -12,6 +12,12 @@
       "source": "./plugins/vp-cc-recap",
       "description": "An ADHD-friendly session recap above the prompt, on demand and after you have been idle.",
       "keywords": ["mod", "recap", "adhd", "focus"]
+    },
+    {
+      "name": "vp-cc-park",
+      "source": "./plugins/vp-cc-park",
+      "description": "Park a side idea with one command and pick it up later from above the prompt.",
+      "keywords": ["mod", "park", "adhd", "focus"]
     }
   ]
 }

@@ -18,6 +18,7 @@ plugins/<name>/                   # one plugin per directory
   tests/*.test.tsx                # claude plugin test suites
   skills/vp-cc-<skill>/SKILL.md   # skills the plugin ships, when it has any
   README.md                       # the plugin's own documentation
+shared/                           # canonical helpers that plugins copy (see Shared helpers)
 README.md                         # the collection overview
 AGENTS.md                         # this file
 ```
@@ -49,6 +50,49 @@ To prototype, ask Claude in any session for a mod (the built-in `plugin-authorin
 - Draw for both the `terminal` and `desktop` surfaces. Elements come from `$.ui.resolve(e)`; check the render-sites and elements tables before using a site or an element on Desktop.
 - Keep anything that must survive a reload in `$.state` (this session) or `$.store` (across sessions). Module variables reset on every reload.
 - Do not send anything to the model or the transcript that the feature does not need. A `command.run` hook that has nothing to print returns `{}`.
+- The band above the prompt (`AbovePrompt`) is one site that every mod shares, and a tree returned without the rest of the chain hides every mod drawn after it. Always stack: `const below = await next(e)`, then return `<Box flexDirection="column">{mine}{below}</Box>`, or `below` alone when there is nothing to show.
+- Give every Button a key prefixed with the plugin's short name (`park:toggle`), and take hotkeys only from the table below, so two plugins drawing at once never claim the same key.
+- Every session on the machine shares a plugin's `$.store`, and a read followed by a write is not atomic. Keep each record under its own key (`item:<id>`) and read again right before a write.
+- `$.ui.status` raised no error in the Desktop app, but nothing appeared under the prompt there (checked on engine 2.1.286). Draw in the band instead.
+
+### Hotkeys in the band
+
+| Plugin | Hotkeys |
+| :- | :- |
+| `vp-cc-recap` | `1`, `2`, `3` |
+| `vp-cc-park` | `p` |
+
+Add a row when a plugin takes a hotkey.
+
+### Shared helpers
+
+An installed plugin is copied alone, so it cannot import from outside its own folder. Code that several plugins need lives once in `shared/` and is copied byte for byte into each plugin that uses it. `scripts/check.mjs` fails on a copy that differs from the canonical file. To change a helper, edit the file in `shared/`, copy it into every plugin that has it, and bump those plugins' versions.
+
+| Canonical file | Copy | What it does |
+| :- | :- | :- |
+| `shared/localize.ts` | `hooks/localize.ts` | Builds the prompt that asks a small model to translate a plugin's labels, using the person's recent prompts as the language sample, and parses the reply with English fallbacks. The plugin makes the `$.model.complete` call itself, because a hooks module passes `$` only to functions declared in its own file. |
+
+### Testing notes
+
+- In a test, `$.prompt.submit` from the test raises `prompt.submit` with no `origin`. A hook that reads `e.origin` must allow for that.
+- A test that stubs a method event answers it with `{ value }`, including `ui.toast` (`{ value: undefined }`).
+- The test's `$` has no `$.store`; check what a plugin stored through what it draws or answers.
+
+## Official resources
+
+Read these before writing a new kind of mod. The type declarations for the running build remain the authority when they disagree with a page.
+
+- [Mods overview](https://code.claude.com/docs/en/plugins/mods/overview): what mods can do and where they run.
+- [Create a mod](https://code.claude.com/docs/en/plugins/mods/create): the authoring loop, validation and type declarations.
+- [Interface](https://code.claude.com/docs/en/plugins/mods/interface): panes, the band, elements, focus, hotkeys, `$.state` and `$.store`.
+- [Events](https://code.claude.com/docs/en/plugins/mods/events): the middleware chain, matchers, the order mods run in, error handlers.
+- [API](https://code.claude.com/docs/en/plugins/mods/api): commands, tools, model calls, timers, background work.
+- [Reference](https://code.claude.com/docs/en/plugins/mods/reference): every event, method, render site and element per app, and the limits.
+- [Test](https://code.claude.com/docs/en/plugins/mods/test): the `claude-code/testing` kit.
+- [Troubleshoot](https://code.claude.com/docs/en/plugins/mods/troubleshoot): load failures, skipped hooks, drawings that do not appear.
+- [Plugin evals](https://code.claude.com/docs/en/plugin-evals): `claude plugin eval`, behavior tests that run a real model and cost real usage.
+- The built-in `plugin-authoring` skill: run `/plugin-authoring` or ask Claude for a mod; it names the type declarations for the running build.
+- Example mods with tests: the [built-in mods](https://github.com/anthropics/claude-code/tree/main/mods) (`diff`, `agents-md`, `sec-default`, `telemetry`) and the [playground mods](https://github.com/anthropics/claude-code-playground/tree/main/claude-code/mods) (`token-weather`, `blast-radius`, `replay-theater`).
 
 ## Development flow
 
