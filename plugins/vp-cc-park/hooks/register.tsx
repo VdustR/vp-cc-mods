@@ -128,7 +128,8 @@ export const register: Register = (on, options) => {
   on('command.run', { command: 'vp-cc-park' }, async ($, e) => {
     if (!isTranslated && samples.length > 0) {
       isTranslated = true
-      void translateLabels($, samples)
+      // A refused request rejects; English labels stay in that case.
+      void translateLabels($, samples).catch(() => undefined)
     }
     const text = e.args.trim().slice(0, MAX_LENGTH)
     if (text === '') {
