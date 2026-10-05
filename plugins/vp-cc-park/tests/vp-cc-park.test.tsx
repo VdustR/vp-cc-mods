@@ -170,3 +170,32 @@ test('labels follow the language of the prompts, and a label that drops its plac
   expect(toasts.at(-1)).toBe('Parked: Noch eine Idee')
   expect(asked).toHaveLength(1)
 })
+
+// The shared helper's pure parts, tested once here, in the plugin that owns
+// the canonical copy's first use.
+const VOICES = [
+  'Anna                de_DE    # Hallo, ich heisse Anna.',
+  'Eddy (German (Germany)) de_DE    # Hallo!',
+  'Eddy (Chinese (Taiwan)) zh_TW    # Sample.',
+  'Meijia              zh_TW    # Sample.',
+  'Tingting            zh_CN    # Sample.',
+  'Samantha            en_US    # Hello, my name is Samantha.',
+].join('\n')
+
+test('pickVoice prefers the exact locale and the language\'s own voice', async () => {
+  const { pickVoice } = await import('../hooks/localize')
+  expect(pickVoice(VOICES, 'zh-TW')).toBe('Meijia')
+  expect(pickVoice(VOICES, 'zh-Hans')).toBe('Tingting')
+  expect(pickVoice(VOICES, 'de')).toBe('Anna')
+  expect(pickVoice(VOICES, 'en')).toBeUndefined()
+  expect(pickVoice(VOICES, 'fr')).toBeUndefined()
+  expect(pickVoice(VOICES, undefined)).toBeUndefined()
+})
+
+test('parseLanguage reads a well-formed _lang tag only', async () => {
+  const { parseLanguage } = await import('../hooks/localize')
+  expect(parseLanguage('{"show": "Zeigen", "_lang": "de"}')).toBe('de')
+  expect(parseLanguage({ _lang: 'zh-TW' })).toBe('zh-TW')
+  expect(parseLanguage({ _lang: 'German!' })).toBeUndefined()
+  expect(parseLanguage('no json')).toBeUndefined()
+})
