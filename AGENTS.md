@@ -12,7 +12,7 @@ This repository is VdustR's single home for Claude Code mods and Claude Code-onl
 .claude-plugin/marketplace.json   # the marketplace: one entry per plugin
 plugins/<name>/                   # one plugin per directory
   .claude-plugin/plugin.json      # manifest: name, version, description, author, types, userConfig
-  hooks/hooks.json                # { "modules": ["./register.tsx"] } for a mod
+  hooks/hooks.json                # { "hooks": {}, "modules": ["./register.tsx"] } for a mod
   hooks/register.tsx              # the hooks module
   types/index.d.ts                # the $.state contract, when the mod keeps state
   tests/*.test.tsx                # claude plugin test suites
@@ -43,6 +43,7 @@ To prototype, ask Claude in any session for a mod (the built-in `plugin-authorin
 
 ## Write a mod
 
+- Write `hooks/hooks.json` as `{ "hooks": {}, "modules": ["./register.tsx"] }`. The mod engine reads `modules`; the classic plugin loader (`/reload-plugins` and `claude plugin validate`) still expects a `hooks` record and errors ("hooks: Invalid input: expected record, received undefined") when the key is absent. The empty record satisfies the classic loader without adding any classic hook, so both loaders accept the file.
 - Read the type declarations for the running build before writing code: the `plugin-authoring` skill names the file, or read the copy Claude Code writes into `.claude-plugin/types/`. Trust those declarations over any web page when they disagree.
 - Follow the static-analysis rules `claude plugin validate` enforces: write each `$` call in full (`$.ui.toast(...)`), pass `$` only to functions declared at the top level of the same file, use string-literal event names, and use only relative imports plus `claude-code`.
 - A `ui.render` hook is pure: it reads state and returns a tree. Write `$.state` from handlers (`onPress`) or other events (`turn.complete`, timers).
