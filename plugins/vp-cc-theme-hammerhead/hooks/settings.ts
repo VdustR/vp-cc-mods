@@ -1,6 +1,6 @@
 // What a person can choose, with its defaults and its limits.
 
-import type { Glass, LookSettings, Mode, Scheme } from '../types'
+import type { LookSettings, Mode, Scheme } from '../types'
 import { modeOf } from './look'
 import { DEFAULTS, PRESETS } from './presets'
 import { ANSI_KEYS } from './scheme'
@@ -9,7 +9,8 @@ import { isHex } from './color'
 export const DEFAULT_LOOK: LookSettings = {
   dark: DEFAULTS.dark,
   light: DEFAULTS.light,
-  glass: 'standard',
+  blur: 4,
+  veil: 40,
   size: 100,
   speed: 100,
   isSharkShown: true,
@@ -21,12 +22,29 @@ export const DEFAULT_LOOK: LookSettings = {
   custom: [],
 }
 
-/** The frost over the sea, as `$.theme.set` takes it. No tint: the panels keep their own color, which follows the mode. */
-export const GLASS: Record<Glass, { blur: number; opacity: number } | false> = {
-  off: false,
-  clear: { blur: 2, opacity: 0.22 },
-  standard: { blur: 4, opacity: 0.4 },
-  frosted: { blur: 8, opacity: 0.5 },
+export const BLUR_STEP = 2
+export const BLUR_MOST = 24
+export const VEIL_STEP = 10
+export const VEIL_MOST = 80
+
+/** What the four glass levels of earlier versions stored, as the blur and veil they stood for. */
+const OLD_GLASS: Record<string, { blur: number; veil: number }> = {
+  off: { blur: 0, veil: 0 },
+  clear: { blur: 2, veil: 20 },
+  standard: { blur: 4, veil: 40 },
+  frosted: { blur: 8, veil: 50 },
+}
+
+/**
+ * The frost over the sea, as `$.theme.set` takes it: `false` when there is neither blur nor veil. No tint: a tint
+ * is one raw color for both modes, so it could not follow light and dark, and the panels' own color does.
+ */
+export function glassOf(settings: LookSettings): { blur: number; opacity: number } | false {
+  return settings.blur === 0 && settings.veil === 0 ? false : { blur: settings.blur, opacity: settings.veil / 100 }
+}
+
+function stepped(value: unknown, step: number, most: number, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(most, Math.round(value / step) * step)) : fallback
 }
 
 export const STEP = 25
@@ -66,10 +84,13 @@ export function schemeOf(settings: LookSettings, mode: Mode): Scheme {
 export function readSettings(raw: unknown): LookSettings {
   const stored = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
   const custom = Array.isArray(stored.custom) ? stored.custom.filter(isScheme).slice(-CUSTOM_LIMIT) : []
+  // Settings saved before blur and veil were set apart hold one of four glass levels.
+  const old = OLD_GLASS[typeof stored.glass === 'string' ? stored.glass : 'standard'] ?? OLD_GLASS.standard!
   const settings: LookSettings = {
     dark: typeof stored.dark === 'string' ? stored.dark : DEFAULTS.dark,
     light: typeof stored.light === 'string' ? stored.light : DEFAULTS.light,
-    glass: stored.glass === 'off' || stored.glass === 'clear' || stored.glass === 'frosted' ? stored.glass : 'standard',
+    blur: stepped(stored.blur, BLUR_STEP, BLUR_MOST, old.blur),
+    veil: stepped(stored.veil, VEIL_STEP, VEIL_MOST, old.veil),
     size: percent(stored.size),
     speed: percent(stored.speed),
     isSharkShown: stored.isSharkShown !== false,

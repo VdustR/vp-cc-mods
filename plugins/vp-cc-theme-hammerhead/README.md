@@ -6,7 +6,7 @@ A calm look for the Claude desktop app, built from any terminal color scheme: on
 
 The stock look is neutral by design. This theme gives long sessions a warmer, quieter place to work in, in the colors you already use in your terminal:
 
-- **Your scheme, both modes.** Pick a scheme for dark mode and another for light mode. The theme follows the app's own appearance setting, so there is nothing to switch by hand. It starts with [Gruvbox](https://github.com/morhetz/gruvbox) Dark and [Everforest](https://github.com/sainnhe/everforest) Light.
+- **Your scheme, both modes.** Pick a scheme for dark mode and another for light mode. The theme follows the app's own appearance setting, so there is nothing to switch by hand. It starts with [Gruvbox](https://github.com/morhetz/gruvbox) Dark and [Catppuccin](https://github.com/catppuccin/catppuccin) Latte.
 - **The terminal format, nothing new to learn.** A scheme is the 20 colors of a terminal theme, in the Windows Terminal format that [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) publishes for every scheme it collects. Paste one, or describe one in a few words and Claude writes it.
 - **One set of rules for every scheme.** The app's surfaces, its text, the water, the ribbons and the shark are all worked out from the scheme to fixed contrast targets, so the waves and the words are as clear on a pale scheme as on a black one.
 - **Motion that stays out of the way.** One shark swims a wide loop that takes a few minutes, and ribbons drift across the water. Nothing blinks, and nothing asks for attention.
@@ -40,13 +40,14 @@ Every change is drawn at once and kept for every session on the machine.
 | **Your own scheme** | Type a few words (`warm coffee and cream, low contrast`) and press Enter: Claude writes a scheme for the chosen mode. Or paste a scheme as JSON. It is kept in the list, where **Remove** deletes it. |
 | **Show as JSON** | Shows the chosen scheme in the terminal format, to copy, edit and paste back. |
 | **Backdrop** | **Moving** is the sea in motion, **Still** the sea at rest, **Plain** the scheme's background alone, with no sea, shark or glass. |
-| **Glass** | How strongly the app frosts the sea behind the conversation: off, clear, standard or frosted. Off shows the sea at full strength. |
+| **Blur** | How far the sea blurs behind the conversation, 0 to 24. |
+| **Veil** | How opaque the app's own panel color lies over the sea, 0% to 80%. A message bubble is a panel: a thick veil makes bubbles solid, a thin one leaves them see-through. With both at 0 the sea is bare. |
 | **Depth** | How far the water and its ribbons are apart, 1 (barely there) to 10 (deep). The default is 3. |
 | **Waves** | Three, five or seven ribbons, and whether specks of light twinkle on the water. |
 | **Shark** | Shows or hides the shark. **New route** sends it another way. |
 | **Shark size** and **Swim speed** | 50% to 200% of its own, in steps of 25. |
 | **Stronger borders** | Asks the app for stronger borders and focus rings. |
-| **Reset to defaults** | Back to Gruvbox Dark and Everforest Light with the standard sea. Your own schemes are kept. |
+| **Reset to defaults** | Back to Gruvbox Dark and Catppuccin Latte with the standard sea. Your own schemes are kept. |
 
 ### Shipped schemes
 
@@ -109,6 +110,7 @@ The theme draws in the Claude desktop and mobile apps. The terminal and the edit
 - **Reduced motion.** When the system asks for reduced motion, everything rests in place.
 - **Code highlighting.** A shipped scheme names its matching code theme, which then takes the place of the one chosen in the app's Appearance settings while the theme is on. Tokyo Night Day and Nord Light have no matching theme and color code from the scheme itself.
 - **Not adjustable:** corner radius, fonts, shadows and spacing. A theme is colors, the backdrop and its glass.
+- **Bubbles cannot be styled on their own.** A message bubble is one of the app's panels, so blur and veil change every panel together, and a veil's color is the app's own. A tint is not offered: it is one raw color for both modes and could not follow light and dark.
 - **The pane is in English.** Its labels are not translated.
 - **Permission prompts** always keep the app's own look.
 
