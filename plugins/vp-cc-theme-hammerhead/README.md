@@ -1,21 +1,21 @@
 # vp-cc-theme-hammerhead
 
-A calm look for the Claude desktop app: Gruvbox colors in dark mode, Everforest colors in light mode, and a hammerhead silhouette cruising a slow sea behind the chat.
+A calm look for the Claude desktop app, built from any terminal color scheme: one scheme for dark mode and one for light, and a hammerhead silhouette cruising a slow sea behind the chat.
 
 ## Why
 
-The stock look is neutral by design. This theme gives long sessions a warmer, quieter place to work in:
+The stock look is neutral by design. This theme gives long sessions a warmer, quieter place to work in, in the colors you already use in your terminal:
 
-- **Two palettes, one plugin.** Dark mode uses [Gruvbox](https://github.com/morhetz/gruvbox) and light mode uses [Everforest](https://github.com/sainnhe/everforest). The theme follows the app's own light or dark setting, so there is nothing to switch by hand.
-- **Motion that stays out of the way.** One shark swims a wide loop that takes a few minutes, and ribbons of light drift across the water. Nothing blinks, and nothing asks for attention.
-- **A different sea each time.** The route, the pace of the tail and the waves are drawn at random when the plugin loads.
+- **Your scheme, both modes.** Pick a scheme for dark mode and another for light mode. The theme follows the app's own appearance setting, so there is nothing to switch by hand. It starts with [Gruvbox](https://github.com/morhetz/gruvbox) Dark and [Everforest](https://github.com/sainnhe/everforest) Light.
+- **The terminal format, nothing new to learn.** A scheme is the 20 colors of a terminal theme, in the Windows Terminal format that [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) publishes for every scheme it collects. Paste one, or describe one in a few words and Claude writes it.
+- **One set of rules for every scheme.** The app's surfaces, its text, the water, the ribbons and the shark are all worked out from the scheme to fixed contrast targets, so the waves and the words are as clear on a pale scheme as on a black one.
+- **Motion that stays out of the way.** One shark swims a wide loop that takes a few minutes, and ribbons drift across the water. Nothing blinks, and nothing asks for attention.
 
 ## What it looks like
 
-- **Dark mode:** a warm Gruvbox night sea, a pale silhouette, cream ribbons of light.
-- **Light mode:** an Everforest lagoon, a dark silhouette, white ribbons of light.
-- **The shark:** a pure silhouette seen from above. A wave travels down its body to the tail in a slow S, and its head sweeps the other way, as a hammerhead's does.
-- **The panels:** the chat, the sidebar and the side panels are lightly frosted, so the sea shows through them.
+- **The app:** the page takes the scheme's background, and cards, panels and menus step away from it by a small, fixed amount. Buttons and links take the scheme's accent; red, green, yellow and purple color errors, successes, warnings and the rest.
+- **The sea:** drawn only in the scheme's own colors. The water is the background. The ribbons that cross it are the foreground, so they are light on a dark scheme and dark on a light one, at an opacity worked out to stand out equally on both.
+- **The shark:** a pure silhouette in the color of the text, seen from above. A wave travels down its body to the tail in a slow S, and its head sweeps the other way, as a hammerhead's does.
 
 ## Use
 
@@ -25,28 +25,89 @@ Install the plugin, then start or reload a session in the desktop app:
 /plugin install vp-cc-theme-hammerhead@vp-cc-mods
 ```
 
-There are no commands and no options. To turn the theme off, disable or uninstall the plugin.
+Open the settings pane with:
+
+```text
+/vp-cc-theme-hammerhead
+```
+
+Every change is drawn at once and kept for every session on the machine.
+
+| In the pane | What it does |
+| :- | :- |
+| **Dark** and **Light** | Choose which mode's scheme the list below sets. |
+| The scheme list | The shipped schemes for that mode, then your own. Press one to use it. |
+| **Your own scheme** | Type a few words (`warm coffee and cream, low contrast`) and press Enter: Claude writes a scheme for the chosen mode. Or paste a scheme as JSON. It is kept in the list, where **Remove** deletes it. |
+| **Show as JSON** | Shows the chosen scheme in the terminal format, to copy, edit and paste back. |
+| **Backdrop** | **Moving** is the sea in motion, **Still** the sea at rest, **Plain** the scheme's background alone, with no sea, shark or glass. |
+| **Glass** | How strongly the app frosts the sea behind the conversation: off, clear, standard or frosted. Off shows the sea at full strength. |
+| **Waves** | Three, five or seven ribbons, and whether specks of light twinkle on the water. |
+| **Shark** | Shows or hides the shark. **New route** sends it another way. |
+| **Shark size** and **Swim speed** | 50% to 200% of its own, in steps of 25. |
+| **Stronger borders** | Asks the app for stronger borders and focus rings. |
+| **Reset to defaults** | Back to Gruvbox Dark and Everforest Light with the standard sea. Your own schemes are kept. |
+
+### Shipped schemes
+
+| Dark mode | Light mode |
+| :- | :- |
+| Gruvbox Dark | Gruvbox Light |
+| Everforest Dark | Everforest Light |
+| Catppuccin Mocha | Catppuccin Latte |
+| Tokyo Night | Tokyo Night Day |
+| Nord | Nord Light |
+| Rose Pine | Rose Pine Dawn |
+| Solarized Dark | Solarized Light |
+| Dracula | |
+
+### Your own scheme
+
+A scheme is one JSON object. Take any file from the `windowsterminal` folder of [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes), or write your own:
+
+```json
+{
+  "name": "Ember",
+  "background": "#1b1412", "foreground": "#f2e3d5", "cursorColor": "#ff8a4c", "selectionBackground": "#4a342c",
+  "black": "#1b1412", "red": "#e5604d", "green": "#9fb86a", "yellow": "#e8b25c",
+  "blue": "#6fa3c7", "purple": "#b98bc9", "cyan": "#6fbfb2", "white": "#d9c7b8",
+  "brightBlack": "#6b554b", "brightRed": "#f27d6b", "brightGreen": "#b7cf85", "brightYellow": "#f4c97a",
+  "brightBlue": "#8dbbe0", "brightPurple": "#cfa5dd", "brightCyan": "#8fd6ca", "brightWhite": "#fbf1e6",
+  "accent": "#ff8a4c"
+}
+```
+
+- Every color is six-digit hex. The 16 colors are required; `background` falls back to `black`, `foreground` to `brightWhite`.
+- A scheme belongs to the mode its background is in: a dark background makes it a dark-mode scheme, whichever mode you were choosing for.
+- Two optional keys are not part of the terminal format:
+  - `accent`: the color of buttons, links and switches. Without it the cursor color is used when it is a color and not a gray, else blue.
+  - `codeTheme`: the name of the app's own code highlighting theme that goes with the scheme, such as `dracula` or `catppuccin-latte`. The names are the ones the [Shiki](https://shiki.style/themes) themes carry; the app keeps its own choice for a name it does not offer. Without it, code is colored from the scheme's red, green, yellow and purple.
+- The nested form that [term-ptt-custom-theme](https://github.com/VdustR/term-ptt-custom-theme) writes (`scheme` and `metadata`) is read too.
 
 It has been checked on Claude Code 2.1.325, the engine bundled with the desktop app at the time of writing. The theme API (`$.theme.set` and the `Backdrop` site) is newer than the first mods release, and the lowest version that has it has not been established.
 
-The theme draws in the Claude desktop and mobile apps. The terminal and the editor extensions draw no look, so the plugin does nothing there and says nothing.
+The theme draws in the Claude desktop and mobile apps. The terminal and the editor extensions draw no look, so the plugin sets nothing there and says nothing; the settings pane still opens.
 
 ## How it works
 
-- At `session.start` the plugin calls `$.theme.set` with the colors for both modes and a backdrop scene. After `/clear`, which raises no `session.start`, the next prompt sets the theme again.
-- A `ui.render` hook on `Backdrop` answers the scene with one SVG. The SVG holds no script; it animates with its own CSS.
-- The surface tells a scene nothing about light or dark, so the SVG switches its palette with a `prefers-color-scheme` media query.
+- At `session.start` the plugin reads its settings from `$.store`, works out the look and calls `$.theme.set` with the colors for both modes and a backdrop scene. After `/clear`, which raises no `session.start`, the next prompt sets the theme again.
+- The app's colors come from the design system's own builder, `make-colors.js`, which ships inside Claude Code's `plugin-authoring` skill and is copied here unchanged. The plugin gives it a few colors a mode and it names the hundred the app needs.
+- The Desktop app ignores a whole theme when one piece of text falls under its contrast floor. A scheme that would fail is eased until it passes: flatter surfaces first, then the one role color at fault is left to the app's own.
+- Text is held to 7:1 on the worst ground it is read on: the page, a card, the water, and the water under a ribbon.
+- A `ui.render` hook on `Backdrop` answers the scene with one SVG. The SVG holds no script; it animates with its own CSS. The surface tells a scene nothing about light or dark, so the SVG carries both modes' palettes and switches with a `prefers-color-scheme` media query.
 - The shark follows a CSS motion path (`offset-path` with `offset-rotate: auto`), so it turns to face where it goes. Its body is a chain of hinged segments that swing on one slow beat, each a little later than the one before.
-- The scene is built once per load from a random seed, outside the render hook, so a redraw never moves the shark.
-- The plugin reads nothing from the conversation, stores nothing, and sends nothing anywhere.
+- The scene is built when the look is set, from a random seed kept for the load, so a redraw never moves the shark. A surface draws a backdrop again only for a scene name it has not drawn, so each look names its scene with a count.
+- When you describe a scheme in words, those words go to Claude in one model call that sees nothing of the conversation. Nothing else is sent anywhere.
 
 ## Limits
 
 - **One theme per session.** A session has a single theme, and the latest `$.theme.set` wins. Run this plugin with another theme plugin and whichever sets its theme last is the one shown.
-- **The scene restarts when the app draws the backdrop again.** The SVG cannot read the clock, so its animation starts over whenever the surface remounts it, for example after a plugin reload. The shark then jumps back to its starting point.
+- **The appearance setting is the app's.** The plugin cannot tell or change whether the app is in light or dark mode; the pane opens on dark mode's schemes.
+- **The scene restarts when the look changes.** The SVG cannot read the clock, so its animation starts over whenever it is drawn again: after a change in the pane or a plugin reload, the shark jumps back to its starting point.
+- **Other sessions catch up later.** Settings are shared, but a session already open draws a change made elsewhere only when it next sets its theme: on a reload, a `/clear`, or a change in its own pane.
 - **Reduced motion.** When the system asks for reduced motion, everything rests in place.
-- **Code highlighting.** The theme names `gruvbox-dark-medium` and `everforest-light` as code themes. A surface keeps its own highlighting for a name it does not offer.
-- **Contrast.** The palettes are painted as their authors designed them. Some pairs, mostly borders in light mode, fall below the design system's contrast bar.
+- **Code highlighting.** A shipped scheme names its matching code theme, which then takes the place of the one chosen in the app's Appearance settings while the theme is on. Tokyo Night Day and Nord Light have no matching theme and color code from the scheme itself.
+- **Not adjustable:** corner radius, fonts, shadows and spacing. A theme is colors, the backdrop and its glass.
+- **The pane is in English.** Its labels are not translated.
 - **Permission prompts** always keep the app's own look.
 
 ## Develop
@@ -59,17 +120,16 @@ The files:
 
 | File | What it holds |
 | :- | :- |
-| `hooks/register.tsx` | The hooks: set the theme, set it again after `/clear`, draw the backdrop. |
-| `hooks/scene.ts` | `buildScene(seed)`: the sea, the shark and the ribbons as one SVG string. |
-| `hooks/colors.ts` | The theme's colors. Generated; do not edit by hand. |
-| `scripts/build-colors.mjs` | The palette, and the script that writes `hooks/colors.ts` from it. |
+| `hooks/register.tsx` | The hooks, the settings pane and the slash command |
+| `hooks/presets.ts` | The shipped schemes and the default pair |
+| `hooks/scheme.ts` | Reading a scheme a person pasted or the model wrote |
+| `hooks/look.ts` | From a scheme to the app's colors and the sea's |
+| `hooks/scene.ts` | The sea, the ribbons and the shark as one SVG |
+| `hooks/settings.ts` | What can be chosen, with its defaults and limits |
+| `hooks/color.ts` | Contrast, mixing and OKLCH |
+| `hooks/make-colors.js` | The design system's color builder, copied unchanged; copy it again when Claude Code updates |
+| `types/index.d.ts` | The scheme format and the `$.state` contract |
 
-To change a color, edit the palette in `scripts/build-colors.mjs` and run it again. It needs `make-colors.js`, which ships inside Claude Code's built-in `plugin-authoring` skill and maps a small palette onto the design system's token names. Run `/plugin-authoring` in a session to have Claude Code write the skill's files and name their folder, then:
+To add a shipped scheme, add its Windows Terminal JSON to `hooks/presets.ts`. The tests then hold it to the same bar as the rest: the Desktop app must paint it, and its waves, shark and text must reach their contrast targets.
 
-```bash
-node plugins/vp-cc-theme-hammerhead/scripts/build-colors.mjs <path to make-colors.js>
-```
-
-The script refuses a palette that the desktop app would not paint.
-
-To change the art, edit `hooks/scene.ts`. Tests draw the backdrop on the desktop and mobile surfaces and check that it stays one script-free SVG under the engine's size limit; they do not check how it looks, so look at it in the desktop app in both modes before a pull request.
+Check any change to the look in the desktop app in both modes, as [AGENTS.md](../../AGENTS.md) describes: the tests do not paint.

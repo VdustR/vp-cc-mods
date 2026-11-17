@@ -10,9 +10,36 @@
 // direction, each also rising and falling on its own period, so their overlaps keep changing.
 //
 // No script, no filter, no blend mode: an animated SVG image repaints every frame, and those cost the most.
-// The surface tells a scene nothing about light or dark, so the SVG switches its own palette with a media query:
-// a warm Gruvbox night sea in dark mode, an Everforest lagoon in light mode. All motion stops when the system
-// asks for reduced motion.
+// The surface tells a scene nothing about light or dark, so the SVG carries both palettes, each worked out from
+// that mode's scheme, and switches between them with a media query. All motion stops when the system asks for
+// reduced motion.
+
+import type { Sea } from './look'
+
+/** What a scene is drawn with, beside its seed. */
+export type SceneLook = {
+  dark: Sea
+  light: Sea
+  /** The shark's size, where 1 is its own. */
+  size: number
+  /** How fast the shark swims and beats its tail, where 1 is its own pace. */
+  speed: number
+  isSharkShown: boolean
+  /** How many ribbons cross the water. */
+  waves: number
+  /** Whether specks of light twinkle on the water. */
+  hasGlints: boolean
+  /** False rests everything in place, as reduced motion does. */
+  isMoving: boolean
+}
+
+function palette(sea: Sea): string {
+  return `--deep: ${sea.deep}; --mid: ${sea.mid}; --shallow: ${sea.shallow}; --glow: ${sea.glow};
+  --light: ${sea.light}; --band-o: ${sea.bandOpacity}; --crest-o: ${sea.crestOpacity};
+  --shark: ${sea.shark}; --shark-o: ${sea.sharkOpacity};
+  --shadow: ${sea.shadow}; --shadow-o: ${sea.shadowOpacity};
+  --speck: ${sea.speck}; --speck-o: ${sea.speckOpacity};`
+}
 
 type Point = readonly [number, number]
 
@@ -161,11 +188,11 @@ function ribbon(rand: () => number, index: number, count: number): string {
 const SHADOW: Point = [18, 28]
 
 /** The whole scene for one seed: the route, the beat, the ribbons and the drifting specks are drawn from it. */
-export function buildScene(seed: number): string {
+export function buildScene(seed: number, look: SceneLook): string {
   const rand = rng(seed)
   const path = route(rand)
   // Unhurried: 15 to 19 units a second, so a lap of the window takes a few minutes.
-  const seconds = Math.round(length(path) / (15 + rand() * 4))
+  const seconds = Math.round(length(path) / ((15 + rand() * 4) * look.speed))
   const head = Math.round(rand() * seconds)
   // Where the shark rests when motion is reduced: at the route point nearest the middle of the window, so it is
   // in view. The distance along the route is measured along the straight lines between points, which is close.
@@ -182,13 +209,14 @@ export function buildScene(seed: number): string {
     }
   }
   const rest = Math.round((restAt / length(path)) * 100)
-  const size = +(0.92 + rand() * 0.14).toFixed(2)
+  const size = +((0.92 + rand() * 0.14) * look.size).toFixed(2)
   // One sweep of the tail, there and back, takes about three and a half seconds.
-  const beat = +(3.2 + rand() * 0.8).toFixed(2)
+  // A faster shark beats faster, but less than in step, so a quick one does not thrash.
+  const beat = +((3.2 + rand() * 0.8) / Math.sqrt(look.speed)).toFixed(2)
   const outline = `<g transform="scale(${size})">${shark(beat)}</g>`
   const mover = (cls: string, dx: number, dy: number) =>
     `<g class="mover ${cls}" style="offset-path:path('${loop(path, dx, dy)}');animation-duration:${seconds}s;animation-delay:-${head}s;--rest:${rest}%">${outline}</g>`
-  const count = 5
+  const count = look.waves
   const ribbons = Array.from({ length: count }, (_, i) => ribbon(rand, i, count)).join('\n')
   const specks = Array.from({ length: 22 }, () => {
     const r = (1 + rand() * 1.6).toFixed(1)
@@ -199,19 +227,11 @@ export function buildScene(seed: number): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
 <style>
 svg {
-  --deep: #1d2021; --mid: #282828; --shallow: #32302f; --glow: #504945;
-  --light: #ebdbb2; --band-o: .1; --crest-o: .22;
-  --shark: #d5c4a1; --shark-o: .42;
-  --shadow: #000; --shadow-o: .2;
-  --speck: #fabd2f; --speck-o: .5;
+  ${palette(look.dark)}
 }
 @media (prefers-color-scheme: light) {
   svg {
-    --deep: #9fc4b3; --mid: #bdd6c2; --shallow: #dbe5cd; --glow: #f4f0d9;
-    --light: #fff; --band-o: .62; --crest-o: .95;
-    --shark: #5c6a72; --shark-o: .62;
-    --shadow: #5c7a70; --shadow-o: .13;
-    --speck: #fff; --speck-o: .9;
+  ${palette(look.light)}
   }
 }
 .sea { fill: url(#sea); }
@@ -238,6 +258,7 @@ svg {
 @keyframes rise { from { transform: translateY(calc(var(--lift) * -1)); } to { transform: translateY(var(--lift)); } }
 @keyframes twinkle { 0%, 100% { opacity: 0; } 50% { opacity: var(--speck-o); } }
 
+${look.isMoving ? '' : '* { animation: none !important; }\n.speck { opacity: calc(var(--speck-o) * .5); }'}
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; }
   .speck { opacity: calc(var(--speck-o) * .5); }
@@ -261,9 +282,8 @@ svg {
 </defs>
 <rect class="sea" x="-100" y="-100" width="1800" height="1200"/>
 <rect class="glow" x="-100" y="-100" width="1800" height="1200"/>
-${mover('shadow', SHADOW[0] * size, SHADOW[1] * size)}
-${mover('silhouette', 0, 0)}
+${look.isSharkShown ? `${mover('shadow', SHADOW[0] * size, SHADOW[1] * size)}\n${mover('silhouette', 0, 0)}` : ''}
 ${ribbons}
-${specks}
+${look.hasGlints ? specks : ''}
 </svg>`
 }

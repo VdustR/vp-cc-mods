@@ -16,7 +16,7 @@
     {
       "name": "vp-cc-theme-hammerhead",
       "source": "./plugins/vp-cc-theme-hammerhead",
-      "description": "A calm desktop theme: Gruvbox in dark mode, Everforest in light mode, and a hammerhead silhouette cruising a slow sea behind the chat.",
+      "description": "A calm desktop theme from any terminal color scheme: one for dark mode and one for light, with a hammerhead silhouette cruising a slow sea behind the chat.",
       "keywords": ["mod", "theme", "gruvbox", "everforest", "backdrop"]
     }
   ]
