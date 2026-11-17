@@ -7,7 +7,7 @@ import { parseScheme } from '../hooks/scheme'
 
 const PLUGIN = 'vp-cc-theme-hammerhead'
 const SCENE = 'hammerhead-sea'
-const PANE = 'hammerhead-theme'
+const PANE = 'vp-cc-theme-hammerhead-settings'
 
 type On = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[1]
 type Look = {
@@ -217,7 +217,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     // Blur and veil are set apart: a sharp sea can sit under solid bubbles.
     await ui.press({ key: 'hammerhead:blur-down' })
     await ui.press({ key: 'hammerhead:veil-up' })
-    expect(looks.at(-1)?.backdrop?.glass).toEqual({ blur: 2, opacity: 0.5 })
+    expect(looks.at(-1)?.backdrop?.glass).toEqual({ blur: 2, opacity: 0.8 })
 
     await ui.press({ key: 'hammerhead:size-up' })
     await ui.press({ key: 'hammerhead:speed-down' })
@@ -225,8 +225,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(store.get('settings')).toMatchObject({ size: 125, speed: 75, isSharkShown: false })
 
     // Neither blur nor veil is no glass at all.
-    await ui.press({ key: 'hammerhead:blur-down' })
-    for (let press = 0; press < 5; press++) await ui.press({ key: 'hammerhead:veil-down' })
+    for (let press = 0; press < 3; press++) await ui.press({ key: 'hammerhead:blur-down' })
+    for (let press = 0; press < 8; press++) await ui.press({ key: 'hammerhead:veil-down' })
     expect(looks.at(-1)?.backdrop?.glass).toBe(false)
     await ui.press({ key: 'hammerhead:depth-up' })
     expect(store.get('settings')).toMatchObject({ depth: 4 })
