@@ -184,24 +184,28 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
     // The pane opens on dark mode's schemes.
     expect(await ui.find({ type: 'Button', text: 'Catppuccin Mocha' })).toBeDefined()
-    expect(await ui.find({ type: 'Button', text: 'Catppuccin Latte' })).toBeUndefined()
+    expect(await ui.find({ type: 'Button', text: 'Rose Pine Dawn' })).toBeUndefined()
     await ui.press({ key: 'hammerhead:pick-Catppuccin Mocha' })
     expect(looks.at(-1)?.colors?.label).toBe(`Catppuccin Mocha / ${DEFAULTS.light}`)
 
     await ui.press({ key: 'hammerhead:slot-light' })
-    await ui.press({ key: 'hammerhead:pick-Catppuccin Latte' })
-    expect(looks.at(-1)?.colors?.label).toBe('Catppuccin Mocha / Catppuccin Latte')
-    expect(store.get('settings')).toMatchObject({ dark: 'Catppuccin Mocha', light: 'Catppuccin Latte' })
+    await ui.press({ key: 'hammerhead:pick-Rose Pine Dawn' })
+    expect(looks.at(-1)?.colors?.label).toBe('Catppuccin Mocha / Rose Pine Dawn')
+    expect(store.get('settings')).toMatchObject({ dark: 'Catppuccin Mocha', light: 'Rose Pine Dawn' })
 
-    await ui.press({ key: 'hammerhead:glass-frosted' })
-    expect((looks.at(-1)?.backdrop?.glass || { opacity: 0 }).opacity).toBeGreaterThan(0.4)
+    // Blur and veil are set apart: a sharp sea can sit under solid bubbles.
+    await ui.press({ key: 'hammerhead:blur-down' })
+    await ui.press({ key: 'hammerhead:veil-up' })
+    expect(looks.at(-1)?.backdrop?.glass).toEqual({ blur: 2, opacity: 0.5 })
 
     await ui.press({ key: 'hammerhead:size-up' })
     await ui.press({ key: 'hammerhead:speed-down' })
     await ui.press({ key: 'hammerhead:shark' })
     expect(store.get('settings')).toMatchObject({ size: 125, speed: 75, isSharkShown: false })
 
-    await ui.press({ key: 'hammerhead:glass-off' })
+    // Neither blur nor veil is no glass at all.
+    await ui.press({ key: 'hammerhead:blur-down' })
+    for (let press = 0; press < 5; press++) await ui.press({ key: 'hammerhead:veil-down' })
     expect(looks.at(-1)?.backdrop?.glass).toBe(false)
     await ui.press({ key: 'hammerhead:depth-up' })
     expect(store.get('settings')).toMatchObject({ depth: 4 })

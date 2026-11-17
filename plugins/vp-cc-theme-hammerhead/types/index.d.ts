@@ -27,9 +27,6 @@ export type Scheme = Record<AnsiKey, string> & {
 
 export type Mode = 'dark' | 'light'
 
-/** How strongly the app frosts the sea behind the conversation and its panels; `off` leaves it bare. */
-export type Glass = 'off' | 'clear' | 'standard' | 'frosted'
-
 /** What is behind the conversation: the sea in motion, the sea at rest, or the scheme's plain background. */
 export type Backdrop = 'moving' | 'still' | 'plain'
 
@@ -38,7 +35,10 @@ export type LookSettings = {
   /** The name of the scheme each mode draws: a shipped one, or one of `custom`. */
   dark: string
   light: string
-  glass: Glass
+  /** How far the sea blurs behind the conversation and its panels, in points: 0 to 24. */
+  blur: number
+  /** How opaque the app's own panel color lies over the sea, in percent: 0 to 80. A message bubble is a panel. */
+  veil: number
   /** The shark's size and pace in percent of its own, 50 to 200. */
   size: number
   speed: number

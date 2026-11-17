@@ -1,12 +1,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Backdrop, Glass, LookSettings, Mode, Panel, Scheme } from '../types'
+import type { Backdrop, LookSettings, Mode, Panel, Scheme } from '../types'
 import { colorsOf, modeOf, seaOf } from './look'
 import { PRESETS } from './presets'
 import { buildScene } from './scene'
 import { parseScheme } from './scheme'
-import { DEFAULT_LOOK, GLASS, LEAST, MOST, STEP, readSettings, schemeOf, schemesFor, withCustom } from './settings'
+import { BLUR_MOST, BLUR_STEP, DEFAULT_LOOK, LEAST, MOST, STEP, VEIL_MOST, VEIL_STEP, glassOf, readSettings, schemeOf, schemesFor, withCustom } from './settings'
 
 const PLUGIN = 'vp-cc-theme-hammerhead'
 const SCENE_ID = 'hammerhead-sea'
@@ -56,7 +56,7 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
   await $.theme.set({
     colors: colorsOf(dark, light, settings.depth, settings.isHighContrast),
     // Plain is the page's own color, which follows the mode; a still ground takes no glass.
-    backdrop: settings.backdrop === 'plain' ? { color: 'surface-0' } : { scene: `${SCENE_ID}-${seed}-${drawing}`, glass: GLASS[settings.glass] },
+    backdrop: settings.backdrop === 'plain' ? { color: 'surface-0' } : { scene: `${SCENE_ID}-${seed}-${drawing}`, glass: glassOf(settings) },
   })
 }
 
@@ -217,14 +217,6 @@ export const register: Register = on => {
         onPress={() => update($, panelAtom, now => ({ ...now, slot: mode, notice: '' }))}
       />
     )
-    const glass = (kind: Glass, label: string) => (
-      <Button
-        key={`hammerhead:glass-${kind}`}
-        label={label}
-        variant={settings.glass === kind ? 'primary' : 'secondary'}
-        onPress={() => change($, now => ({ ...now, glass: kind }), `Glass: ${label.toLowerCase()}.`)}
-      />
-    )
     const backdrop = (kind: Backdrop, label: string) => (
       <Button
         key={`hammerhead:backdrop-${kind}`}
@@ -334,15 +326,43 @@ export const register: Register = on => {
             {backdrop('plain', 'Plain')}
           </Box>
           {!isSea && <Text dimColor>Plain is the scheme's background alone: no sea, no shark, no glass.</Text>}
-          <Box gap={1} alignItems="center" flexWrap="wrap" display={isSea ? 'flex' : 'none'}>
+          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
             <Box width={12}>
-              <Text>Glass</Text>
+              <Text>Blur</Text>
             </Box>
-            {glass('off', 'Off')}
-            {glass('clear', 'Clear')}
-            {glass('standard', 'Standard')}
-            {glass('frosted', 'Frosted')}
+            <Button
+              key="hammerhead:blur-down"
+              label="Sharper"
+              onPress={() => change($, now => ({ ...now, blur: Math.max(0, now.blur - BLUR_STEP) }), '')}
+            />
+            <Box width={6} justifyContent="center">
+              <Text tabular>{String(settings.blur)}</Text>
+            </Box>
+            <Button
+              key="hammerhead:blur-up"
+              label="Blurrier"
+              onPress={() => change($, now => ({ ...now, blur: Math.min(BLUR_MOST, now.blur + BLUR_STEP) }), '')}
+            />
           </Box>
+          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
+            <Box width={12}>
+              <Text>Veil</Text>
+            </Box>
+            <Button
+              key="hammerhead:veil-down"
+              label="Thinner"
+              onPress={() => change($, now => ({ ...now, veil: Math.max(0, now.veil - VEIL_STEP) }), '')}
+            />
+            <Box width={6} justifyContent="center">
+              <Text tabular>{`${settings.veil}%`}</Text>
+            </Box>
+            <Button
+              key="hammerhead:veil-up"
+              label="Thicker"
+              onPress={() => change($, now => ({ ...now, veil: Math.min(VEIL_MOST, now.veil + VEIL_STEP) }), '')}
+            />
+          </Box>
+          {isSea && <Text dimColor>Blur softens the sea. Veil lays the app's panel color over it: a thick veil makes message bubbles solid, a thin one leaves them see-through.</Text>}
           <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
             <Box width={12}>
               <Text>Depth</Text>
