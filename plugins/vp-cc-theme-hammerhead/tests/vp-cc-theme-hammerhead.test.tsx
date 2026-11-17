@@ -319,6 +319,21 @@ test('a change that leaves the sea alone keeps its name, a press at a limit draw
   await ui.unmount()
 })
 
+test('after a /clear the sea is drawn under a name the surface has not drawn', async ($, on) => {
+  const { looks } = engine(on)
+  await $.session.start(START)
+  const first = looks.at(-1)?.backdrop?.scene
+
+  // The conversation ends without a new start, and its backdrop goes with it.
+  await $.session.end({ reason: 'clear', sessionId: 's1', resume: { id: 's1' } })
+  await $.prompt.submit({ text: 'again', ...PROMPT })
+  await settle()
+
+  expect(looks.length).toBe(2)
+  expect(looks.at(-1)?.backdrop?.scene).toContain(SCENE)
+  expect(looks.at(-1)?.backdrop?.scene).not.toBe(first)
+})
+
 test("another session's change to the shared settings is drawn at the next prompt", async ($, on) => {
   const { looks, store } = engine(on)
   await $.session.start(START)
@@ -352,6 +367,16 @@ test('a pasted scheme is kept, drawn in the mode its background belongs to, and 
   await ui.press({ key: 'hammerhead:remove-Ember' })
   expect(looks.at(-1)?.colors?.label).toBe(`${DEFAULTS.dark} / ${DEFAULTS.light}`)
   expect(store.get('settings')).toMatchObject({ custom: [] })
+
+  // A removal can be taken back until the next change, and the scheme returns as the one in force.
+  await ui.press({ key: 'hammerhead:undo' })
+  expect(looks.at(-1)?.colors?.label).toBe(`Ember / ${DEFAULTS.light}`)
+  expect((store.get('settings') as { custom: { name: string }[] }).custom.map(one => one.name)).toEqual(['Ember'])
+  expect(await ui.find({ type: 'Button', text: /Put "Ember" back/ })).toBeUndefined()
+
+  await ui.press({ key: 'hammerhead:remove-Ember' })
+  await ui.press({ key: 'hammerhead:pick-Nord' })
+  expect(await ui.find({ type: 'Button', text: /Put "Ember" back/ })).toBeUndefined()
   await ui.unmount()
 })
 

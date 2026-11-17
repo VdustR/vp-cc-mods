@@ -81,8 +81,12 @@ export type Panel = {
   retry: string
   /** One line about the last action: what was saved, or what was wrong with a pasted scheme. */
   notice: string
+  /** Whether the notice answers what was typed in the input, and so is said beside it and not at the top. */
+  isSaidByInput?: boolean
   /** True while the model writes a scheme. */
   isBusy: boolean
+  /** A scheme of the person's own that was just removed, which "Undo" puts back. Gone after the next change. */
+  removed?: Scheme
   isJsonShown: boolean
 }
 

@@ -33,13 +33,13 @@ Open the settings pane with:
 
 Every change is drawn at once and kept for every session on the machine. Another open session draws it at its next prompt.
 
-The pane is in sections: **Schemes**, **Your own scheme**, **The sea**, **The shark** and **The app**. Press a heading to open or close its section; a closed one says in a line what it holds. Each of the last three has its own reset. The pane opens as it was left: on the mode you were choosing for, with the same sections open.
+The pane is in sections: **Schemes**, **Your own scheme**, **The sea**, **The shark** and **The app**. Press a heading to open or close its section; a closed one says in a line what it holds. What the last action came to is said under the mode buttons, above every section; an answer to what you typed is said beside the input. A button that steps a value is dimmed once the value has reached its limit. Each of the last three has its own reset. The pane opens as it was left: on the mode you were choosing for, with the same sections open.
 
 | In the pane | What it does |
 | :- | :- |
 | **Dark** and **Light** | Choose which mode's scheme the list below sets. |
 | The scheme list | The shipped schemes for that mode, then your own. Each row shows the scheme's colors, then its water, its ribbons and its shark. Press one to use it. |
-| **Your own scheme** | Type a few words (`warm coffee and cream, low contrast`) and press Enter: Claude writes a scheme for the chosen mode. Or paste a scheme as JSON. It is kept in the list, where **Remove** deletes it. To change one of yours, paste it again under the same name. When Claude does not answer with a scheme, **Try again** asks once more. |
+| **Your own scheme** | Type a few words (`warm coffee and cream, low contrast`) and press Enter: Claude writes a scheme for the chosen mode. Or paste a scheme as JSON. It is kept in the list, where **Remove** deletes it, and a button then puts it back until the next change. To change one of yours, paste it again under the same name. When Claude does not answer with a scheme, **Try again** asks once more. |
 | **Show as JSON** | Shows the chosen scheme in the terminal format, to copy, edit and paste back. |
 | **Backdrop** | **Moving** is the sea in motion, **Still** the sea at rest, **Plain** the scheme's background alone, with no sea, shark or glass. |
 | **Blur** | How far the sea blurs behind the conversation, 0 to 24. Starts at 3. |
