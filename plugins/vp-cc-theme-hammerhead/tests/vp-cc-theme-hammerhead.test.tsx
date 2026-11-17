@@ -145,12 +145,13 @@ test('every shipped scheme is painted by the Desktop app and keeps its waves, it
       // The Desktop app ignores a whole theme when one piece of text is under its floor.
       expect(isPainted(isDark ? scheme : darks[0]!, isDark ? lights[0]! : scheme, depth)).toBe(true)
 
-      const sea = seaOf(scheme, depth)
+      const sea = seaOf(scheme, depth, 1)
       const crest = mix(sea.mid, sea.light, sea.crestOpacity)
       const shark = mix(sea.mid, sea.shark, sea.sharkOpacity)
       // The same contrast on every scheme, pale or black: that is what keeps the waves visible.
       expect(contrast(crest, sea.mid)).toBeGreaterThan(1 + (depthContrast(depth) - 1) * 0.85)
-      expect(contrast(shark, sea.mid)).toBeGreaterThan(2)
+      // Even the faintest shark stands clear of the water.
+      expect(contrast(shark, sea.mid)).toBeGreaterThan(1.4)
       // The ribbons are the lighter of the two, in either mode.
       expect(contrast(sea.light, '#000000')).toBeGreaterThan(contrast(sea.mid, '#000000'))
     }
@@ -210,9 +211,11 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await ui.press({ key: 'hammerhead:depth-up' })
     expect(store.get('settings')).toMatchObject({ depth: 4 })
     await ui.press({ key: 'hammerhead:waves-up' })
-    await ui.press({ key: 'hammerhead:glints' })
+    await ui.press({ key: 'hammerhead:glints-down' })
+    await ui.press({ key: 'hammerhead:wave-speed-up' })
+    await ui.press({ key: 'hammerhead:shark-tone-up' })
     await ui.press({ key: 'hammerhead:contrast' })
-    expect(store.get('settings')).toMatchObject({ waves: 7, hasGlints: false, isHighContrast: true })
+    expect(store.get('settings')).toMatchObject({ waves: 7, glints: 10, waveSpeed: 125, sharkTone: 5, isHighContrast: true })
     expect((looks.at(-1)?.colors as { contrast?: string } | undefined)?.contrast).toBe('more')
 
     // Still keeps the sea and rests it; plain swaps the sea for the page's own color, which takes no glass.

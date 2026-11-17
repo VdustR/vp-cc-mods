@@ -17,10 +17,15 @@ export const DEFAULT_LOOK: LookSettings = {
   backdrop: 'moving',
   depth: 3,
   waves: 5,
-  hasGlints: true,
+  waveSpeed: 100,
+  glints: 22,
+  sharkTone: 4,
   isHighContrast: false,
   custom: [],
 }
+
+/** The numbers of glints a person can choose, fewest first. */
+export const GLINTS: readonly number[] = [0, 10, 22, 40]
 
 export const BLUR_STEP = 2
 export const BLUR_MOST = 24
@@ -97,7 +102,10 @@ export function readSettings(raw: unknown): LookSettings {
     backdrop: stored.backdrop === 'still' || stored.backdrop === 'plain' ? stored.backdrop : 'moving',
     depth: typeof stored.depth === 'number' && Number.isInteger(stored.depth) && stored.depth >= 1 && stored.depth <= 10 ? stored.depth : 3,
     waves: stored.waves === 3 || stored.waves === 7 ? stored.waves : 5,
-    hasGlints: stored.hasGlints !== false,
+    waveSpeed: percent(stored.waveSpeed),
+    // Earlier versions kept the glints as on or off.
+    glints: GLINTS.includes(stored.glints as number) ? (stored.glints as number) : stored.hasGlints === false ? 0 : 22,
+    sharkTone: typeof stored.sharkTone === 'number' && Number.isInteger(stored.sharkTone) && stored.sharkTone >= 1 && stored.sharkTone <= 10 ? stored.sharkTone : 4,
     isHighContrast: stored.isHighContrast === true,
     custom,
   }

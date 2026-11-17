@@ -48,8 +48,12 @@ export type LookSettings = {
   depth: number
   /** How many ribbons cross the water: 3, 5 or 7. */
   waves: number
-  /** Whether specks of light twinkle on the water. */
-  hasGlints: boolean
+  /** How fast the ribbons drift, in percent of their own pace, 50 to 200. */
+  waveSpeed: number
+  /** How many specks of light twinkle on the water: 0, 10, 22 or 40. */
+  glints: number
+  /** How far the shark stands out from the water, 1 (faint) to 10 (bold). */
+  sharkTone: number
   /** Stronger borders and focus rings across the app. */
   isHighContrast: boolean
   /** Schemes the person pasted or asked the model for. */

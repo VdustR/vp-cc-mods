@@ -28,7 +28,9 @@ export type SceneLook = {
   /** How many ribbons cross the water. */
   waves: number
   /** Whether specks of light twinkle on the water. */
-  hasGlints: boolean
+  glints: number
+  /** How fast the ribbons drift, where 1 is their own pace. */
+  waveSpeed: number
   /** False rests everything in place, as reduced motion does. */
   isMoving: boolean
 }
@@ -108,15 +110,16 @@ function length(points: readonly Point[]): number {
 type Part = readonly string[]
 
 /**
- * The cephalofoil, as a great hammerhead's reads from above: a short, broad hammer on a thick neck. Its front edge
- * bows gently forward, and each end is a flat block that stands a little proud of the wing, both forward and back.
+ * The cephalofoil, as a great hammerhead's reads from above: a short, broad hammer set straight on the body, which
+ * runs into it at its full width with no neck. Its front edge bows gently forward, and each end is a flat block
+ * that stands a little proud of the wing, both forward and back.
  */
 const HEAD: Part = [
-  'M152.5 0 C152.5 -8 151.8 -18 150.3 -27 C149.4 -33 148.6 -38 148.8 -43 C149.2 -47 150.5 -50 153 -53 C156 -56 157.5 -63 154 -66.5 C151.5 -69.5 146 -70.5 138 -70.5 C130 -70.5 122 -70.5 116 -70 C111 -69.5 107.5 -65 109 -60 C110 -54 121 -50 123 -44 C124 -37 113 -31 104 -27.5 C98 -24.5 93 -22.5 86 -21.5 L86 21.5 C93 22.5 98 24.5 104 27.5 C113 31 124 37 123 44 C121 50 110 54 109 60 C107.5 65 111 69.5 116 70 C122 70.5 130 70.5 138 70.5 C146 70.5 151.5 69.5 154 66.5 C157.5 63 156 56 153 53 C150.5 50 149.2 47 148.8 43 C148.6 38 149.4 33 150.3 27 C151.8 18 152.5 8 152.5 0 Z',
+  'M152.5 0 C152.5 -8 151.8 -18 150.3 -27 C149.4 -33 148.6 -38 148.8 -43 C149.2 -47 150.5 -50 153 -53 C156 -56 157.5 -63 154 -66.5 C151.5 -69.5 146 -70.5 138 -70.5 C130 -70.5 122 -70.5 116 -70 C111 -69.5 107.5 -65 109 -60 C110 -54 121 -50 123 -44 C124 -37 116 -32 108 -30 C101 -28.6 94 -28.8 86 -29 L86 29 C94 28.8 101 28.6 108 30 C116 32 124 37 123 44 C121 50 110 54 109 60 C107.5 65 111 69.5 116 70 C122 70.5 130 70.5 138 70.5 C146 70.5 151.5 69.5 154 66.5 C157.5 63 156 56 153 53 C150.5 50 149.2 47 148.8 43 C148.6 38 149.4 33 150.3 27 C151.8 18 152.5 8 152.5 0 Z',
 ]
-/** Neck to the widest part of the body, with the pectorals: broad at the base, long, pointed and swept back. */
+/** The front of the body, as wide where it meets the head as further back, with the pectorals: broad at the base, long, pointed and swept back. */
 const BODY: Part = [
-  'M94 -21 C72 -25 48 -28.5 24 -29.5 C8 -30.5 -10 -29.5 -26 -27 L-26 27 C-10 29.5 8 30.5 24 29.5 C48 28.5 72 25 94 21 Z',
+  'M94 -28.8 C72 -29.2 48 -29.6 24 -29.8 C8 -30.5 -10 -29.5 -26 -27 L-26 27 C-10 29.5 8 30.5 24 29.8 C48 29.6 72 29.2 94 28.8 Z',
   'M60 -25 C46 -37 18 -58 -30 -80 C-28 -64 -14 -43 12 -27 Z',
   'M60 25 C46 37 18 58 -30 80 C-28 64 -14 43 12 27 Z',
 ]
@@ -189,7 +192,7 @@ function sine(from: number, to: number, y0: number, wave: number, lift: number, 
 }
 
 /** One ribbon of light: a band that swells and thins, drifting sideways and slowly rising and falling. */
-function ribbon(rand: () => number, index: number, count: number): string {
+function ribbon(rand: () => number, index: number, count: number, speed: number): string {
   const wave = Math.round(420 + rand() * 560)
   const lift = 16 + rand() * 44
   const base = 90 + (index + rand() * 0.9) * (820 / count)
@@ -199,8 +202,8 @@ function ribbon(rand: () => number, index: number, count: number): string {
   const top = sine(-wave, 1600 + wave, base, wave, lift, phase, false)
   const bottom = sine(-wave, 1600 + wave, base + thick, wave, lift, phase + twist, true)
   // Slow: a wavelength takes between about one and three minutes to pass.
-  const seconds = (wave / (4 + rand() * 6)).toFixed(0)
-  const rise = (14 + rand() * 18).toFixed(1)
+  const seconds = (wave / ((4 + rand() * 6) * speed)).toFixed(0)
+  const rise = ((14 + rand() * 18) / speed).toFixed(1)
   const toLeft = rand() < 0.5
 
   return `<g class="rise" style="animation-duration:${rise}s;animation-delay:-${(rand() * 20).toFixed(1)}s;--lift:${(lift * 0.7).toFixed(0)}px"><g class="${toLeft ? 'flow left' : 'flow right'}" style="animation-duration:${seconds}s;animation-delay:-${(rand() * 60).toFixed(0)}s;--wave:${wave}px"><path class="band" d="M${top} L${bottom} Z"/><path class="crest" d="M${top}"/></g></g>`
@@ -239,8 +242,8 @@ export function buildScene(seed: number, look: SceneLook): string {
   const mover = (cls: string, dx: number, dy: number) =>
     `<g class="mover ${cls}" style="offset-path:path('${loop(path, dx, dy)}');animation-duration:${seconds}s;animation-delay:-${head}s;--rest:${rest}%">${outline}</g>`
   const count = look.waves
-  const ribbons = Array.from({ length: count }, (_, i) => ribbon(rand, i, count)).join('\n')
-  const specks = Array.from({ length: 22 }, () => {
+  const ribbons = Array.from({ length: count }, (_, i) => ribbon(rand, i, count, look.waveSpeed)).join('\n')
+  const specks = Array.from({ length: look.glints }, () => {
     const r = (1 + rand() * 1.6).toFixed(1)
 
     return `<circle class="speck" cx="${Math.round(rand() * 1600)}" cy="${Math.round(rand() * 1000)}" r="${r}" style="animation-delay:-${(rand() * 11).toFixed(1)}s"/>`
@@ -306,6 +309,6 @@ ${look.isMoving ? '' : '* { animation: none !important; }\n.speck { opacity: cal
 <rect class="glow" x="-100" y="-100" width="1800" height="1200"/>
 ${look.isSharkShown ? `${mover('shadow', SHADOW[0] * size, SHADOW[1] * size)}\n${mover('silhouette', 0, 0)}` : ''}
 ${ribbons}
-${look.hasGlints ? specks : ''}
+${specks}
 </svg>`
 }

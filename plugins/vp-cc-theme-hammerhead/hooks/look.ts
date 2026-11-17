@@ -40,7 +40,10 @@ type Half = { gray: { anchors: Anchors }; roles?: Partial<Record<Role, string>>;
 
 // How much a ribbon, its crest and the shark stand out from the water, as contrast ratios. Measured from the
 // hand-tuned Gruvbox night sea and Everforest lagoon this plugin started with.
-const SHARK = 2.4
+/** The contrast between the water and the shark at a tone level, 1 (faint) to 10 (bold). Level 4 is 2.4. */
+export function sharkContrast(tone: number): number {
+  return 1.2 + Math.max(1, Math.min(10, tone)) * 0.3
+}
 
 /** A scheme belongs to the mode its background is in. */
 export function modeOf(scheme: Scheme): Mode {
@@ -90,13 +93,13 @@ export function depthContrast(depth: number): number {
  * is a darker shade of it. The shark is a shade further from the water: paler on a dark scheme, darker on a light
  * one.
  */
-export function seaOf(scheme: Scheme, depth: number): Sea {
+export function seaOf(scheme: Scheme, depth: number, sharkTone = 4): Sea {
   const isDark = modeOf(scheme) === 'dark'
   const { background } = scheme
   const step = depthContrast(depth)
   const water = isDark ? background : shade(background, step, false)
   const ribbon = isDark ? shade(background, step, true) : background
-  const shark = shade(water, SHARK, isDark)
+  const shark = shade(water, sharkContrast(sharkTone), isDark)
   const glint = stronger(scheme, scheme.yellow, scheme.brightYellow)
   const hasGlint = contrast(glint, water) >= 3
   // A shadow is darker than the water on either kind of scheme; on water already near black it is black.
