@@ -139,7 +139,7 @@ export type Tuning = {
  * The app's colors for one mode, as the design system's color builder takes them. `lift` eases the surface steps
  * for a scheme the app would not paint otherwise; it scales what `tuning.layers` asks for.
  */
-function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>, tuning: Tuning): Half {
+function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>, tuning: Tuning, firmness: number): Half {
   const isDark = modeOf(scheme) === 'dark'
   const { background, foreground } = scheme
   const far = isDark ? '#ffffff' : '#000000'
@@ -157,7 +157,7 @@ function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>, tuning
 
     return out
   }
-  const primary = reach(foreground, 7)
+  const primary = reach(foreground, firmness)
   const anchors: Anchors = {
     'surface-0': background,
     'surface-1': steps[0]!,
@@ -208,12 +208,26 @@ function blocker(problems: readonly string[]): string | undefined {
   return problems.find(line => line.startsWith("Desktop won't paint"))
 }
 
+/** How far text is pushed from the ground it is read on, as a contrast: the plugin's own first, then firmer. */
+const FIRMNESS = [7, 9, 11, 14, 21] as const
+
+type Eased = {
+  half: Half
+  /** The colors left to the app's own. */
+  left: readonly Role[]
+  /** Whether the text had to be pushed further from the background than the plugin's own 7:1. */
+  isFirmer: boolean
+  /** False when nothing made the app paint it, which a background between dark and light does. */
+  isPainted: boolean
+}
+
 /**
  * One mode's colors that the Desktop app will paint. The app ignores a whole theme when one piece of text falls
- * under its floor, so a scheme that fails is eased until it passes: flatter surfaces first, then the one role
- * color the complaint names is left to the app's own, then all of them.
+ * under its floor, so a scheme that fails is eased until it passes, and each complaint says how: text that is too
+ * dim on one of the app's own highlights is pushed further from the background; otherwise the surfaces are
+ * flattened, and then the one role color the complaint names is left to the app's own.
  */
-function paintable(scheme: Scheme, tuning: Tuning): Half {
+function eased(scheme: Scheme, tuning: Tuning): Eased {
   const mode = modeOf(scheme)
   const tryOne = (half: Half): string | undefined => {
     try {
@@ -222,22 +236,47 @@ function paintable(scheme: Scheme, tuning: Tuning): Half {
       return String(error)
     }
   }
+  const lifts = [1, 0.5, 0]
   const dropped = new Set<Role>()
-  for (const lift of [1, 0.5, 0]) {
-    const half = halfOf(scheme, lift, dropped, tuning)
-    if (tryOne(half) === undefined) return half
-  }
-  for (let round = 0; round < ROLES.length; round++) {
-    const half = halfOf(scheme, 0, dropped, tuning)
+  let lift = 0
+  let firm = 0
+  // Every round changes one thing and none can be undone, so the rounds are bounded by the things there are.
+  for (let round = 0; round < lifts.length + FIRMNESS.length + ROLES.length; round++) {
+    const half = halfOf(scheme, lifts[lift]!, dropped, tuning, FIRMNESS[firm]!)
     const complaint = tryOne(half)
-    if (complaint === undefined) return half
-    const named = ROLES.find(role => !dropped.has(role) && complaint.includes(`-${role}`))
-    dropped.add(named ?? ROLES.find(role => !dropped.has(role))!)
+    if (complaint === undefined) return { half, left: [...dropped], isFirmer: firm > 0, isPainted: true }
+    if (complaint.includes('text-primary on') && firm < FIRMNESS.length - 1) {
+      firm += 1
+    } else if (lift < lifts.length - 1) {
+      lift += 1
+    } else if (dropped.size < ROLES.length) {
+      dropped.add(ROLES.find(role => !dropped.has(role) && complaint.includes(`-${role}`)) ?? ROLES.find(role => !dropped.has(role))!)
+    } else {
+      break
+    }
   }
-  const bare = halfOf(scheme, 0, new Set(ROLES), tuning)
-  if (tryOne(bare) === undefined) return bare
+  const bare = halfOf(scheme, 0, new Set(ROLES), tuning, FIRMNESS.at(-1)!)
+  if (tryOne(bare) === undefined) return { half: bare, left: ROLES, isFirmer: true, isPainted: true }
+  const least: Half = { gray: { anchors: { 'surface-0': bare.gray.anchors['surface-0'], 'text-primary': bare.gray.anchors['text-primary'] } } }
 
-  return { gray: { anchors: { 'surface-0': bare.gray.anchors['surface-0'], 'text-primary': bare.gray.anchors['text-primary'] } } }
+  return { half: least, left: ROLES, isFirmer: true, isPainted: tryOne(least) === undefined }
+}
+
+function paintable(scheme: Scheme, tuning: Tuning): Half {
+  return eased(scheme, tuning).half
+}
+
+/** What a person calls each role's color in a scheme. */
+const ROLE_NAMES: Record<Role, string> = { accent: 'accent', danger: 'red', success: 'green', warning: 'yellow', pro: 'purple' }
+
+/**
+ * What had to give before the Desktop app would paint a scheme, in a person's words: the colors left to the app's
+ * own, whether the text was made firmer, and whether the app paints it at all. Nothing gave for most schemes.
+ */
+export function easingOf(scheme: Scheme, tuning: Tuning): { left: string[]; isFirmer: boolean; isPainted: boolean } {
+  const { left, isFirmer, isPainted } = eased(scheme, tuning)
+
+  return { left: left.map(role => ROLE_NAMES[role]), isFirmer, isPainted }
 }
 
 /** The app's colors for a dark scheme and a light one. */
@@ -259,7 +298,7 @@ export function colorsOf(dark: Scheme, light: Scheme, tuning: Tuning, isHighCont
   }).theme
 }
 
-/** Whether the Desktop app paints these colors: for a test, and to tell a person their scheme was eased. */
+/** Whether the Desktop app paints these colors, for a test. */
 export function isPainted(dark: Scheme, light: Scheme, tuning: Tuning): boolean {
   return blocker(makeColors({ label: 'check', dark: paintable(dark, tuning), light: paintable(light, tuning) }).problems) === undefined
 }

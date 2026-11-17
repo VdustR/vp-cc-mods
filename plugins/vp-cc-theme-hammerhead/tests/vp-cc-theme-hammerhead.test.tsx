@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { contrast, mix } from '../hooks/color'
-import { depthContrast, isPainted, modeOf, seaOf } from '../hooks/look'
+import { depthContrast, easingOf, isPainted, modeOf, seaOf } from '../hooks/look'
 import { DEFAULTS, PRESETS } from '../hooks/presets'
 import { parseScheme } from '../hooks/scheme'
 
@@ -258,6 +258,81 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await ui.unmount()
   })
 }
+
+// Published in iTerm2-Color-Schemes. Its gray foreground is readable on its background, and too dim on the app's
+// own comment highlight, over which the app refuses the whole theme.
+const DIM = JSON.stringify({
+  name: '3024 Night',
+  background: '#090300', foreground: '#a5a2a2', cursorColor: '#a5a2a2', selectionBackground: '#4a4543',
+  black: '#090300', red: '#db2d20', green: '#01a252', yellow: '#fded02', blue: '#01a0e4', purple: '#a16a94', cyan: '#b5e4f4', white: '#a5a2a2',
+  brightBlack: '#5c5855', brightRed: '#e8bbd0', brightGreen: '#47413f', brightYellow: '#4a4543', brightBlue: '#807d7c', brightPurple: '#d6d5d4', brightCyan: '#cdab53', brightWhite: '#f7f7f7',
+})
+
+// Also published there. Its background is a mid teal: too light for the app's dark mode and too dark for its light.
+const MIDTONE = JSON.stringify({ ...(JSON.parse(DIM) as object), name: 'Agave Dusk', background: '#145654', foreground: '#fff0d8', cursorColor: '#f6bd59', selectionBackground: '#347371' })
+
+test('a scheme the app would refuse is eased until it is painted, and one that cannot be is told apart', () => {
+  const tuning = { depth: 3, layers: 2, accent: 'scheme', isCodeThemed: true } as const
+  const light = PRESETS.find(scheme => scheme.name === DEFAULTS.light)!
+  for (const scheme of PRESETS) expect(easingOf(scheme, tuning)).toEqual({ left: [], isFirmer: false, isPainted: true })
+
+  // Dim text is made firmer, and the scheme keeps every color of its own.
+  const dim = parseScheme(DIM, 'x')
+  expect(typeof dim).toBe('object')
+  if (typeof dim === 'object') {
+    expect(easingOf(dim, tuning)).toEqual({ left: [], isFirmer: true, isPainted: true })
+    expect(isPainted(dim, light, tuning)).toBe(true)
+  }
+
+  const midtone = parseScheme(MIDTONE, 'x')
+  expect(typeof midtone === 'object' && easingOf(midtone, tuning).isPainted).toBe(false)
+})
+
+test('a change that leaves the sea alone keeps its name, a press at a limit draws nothing, and changes keep their order', async ($, on) => {
+  const { looks, store } = engine(on)
+  await $.session.start(START)
+  const ui = await $.ui.mount(pane('desktop'))
+  await ui.press({ key: 'hammerhead:section-sea' })
+  await ui.press({ key: 'hammerhead:section-app' })
+  const first = looks.at(-1)?.backdrop?.scene
+
+  // An accent recolors the app and the sea is the same drawing: under the same name the shark swims on.
+  await ui.press({ key: 'hammerhead:accent-cyan' })
+  expect(looks.length).toBe(2)
+  expect(looks.at(-1)?.backdrop?.scene).toBe(first)
+
+  // Depth changes the water, and a surface draws a scene again only under a name it has not drawn.
+  await ui.press({ key: 'hammerhead:depth-up' })
+  expect(looks.at(-1)?.backdrop?.scene).not.toBe(first)
+
+  // Three presses reach the least blur; the fourth changes nothing and sets no theme.
+  for (let press = 0; press < 3; press++) await ui.press({ key: 'hammerhead:blur-down' })
+  const count = looks.length
+  await ui.press({ key: 'hammerhead:blur-down' })
+  expect(looks.length).toBe(count)
+  expect(store.get('settings')).toMatchObject({ blur: 0, depth: 4 })
+
+  // Presses that land together are taken one after another: none reads the settings before the last has written.
+  await Promise.all([ui.press({ key: 'hammerhead:veil-down' }), ui.press({ key: 'hammerhead:veil-down' }), ui.press({ key: 'hammerhead:veil-down' })])
+  expect(store.get('settings')).toMatchObject({ veil: 40 })
+  expect(looks.at(-1)?.backdrop?.glass).toEqual({ blur: 0, opacity: 0.4 })
+  await ui.unmount()
+})
+
+test("another session's change to the shared settings is drawn at the next prompt", async ($, on) => {
+  const { looks, store } = engine(on)
+  await $.session.start(START)
+  await $.prompt.submit({ text: 'one', ...PROMPT })
+  await settle()
+  // Nothing changed: the prompt sets no theme.
+  expect(looks.length).toBe(1)
+
+  store.set('settings', { ...(store.get('settings') as object | undefined), dark: 'Nord' })
+  await $.prompt.submit({ text: 'two', ...PROMPT })
+  await settle()
+  expect(looks.length).toBe(2)
+  expect(looks.at(-1)?.colors?.label).toBe(`Nord / ${DEFAULTS.light}`)
+})
 
 test('a pasted scheme is kept, drawn in the mode its background belongs to, and can be removed', async ($, on) => {
   const { looks, store, asked } = engine(on)

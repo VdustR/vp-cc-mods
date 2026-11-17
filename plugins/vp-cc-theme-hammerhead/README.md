@@ -31,7 +31,7 @@ Open the settings pane with:
 /vp-cc-theme-hammerhead
 ```
 
-Every change is drawn at once and kept for every session on the machine.
+Every change is drawn at once and kept for every session on the machine. Another open session draws it at its next prompt.
 
 The pane is in sections: **Schemes**, **Your own scheme**, **The sea**, **The shark** and **The app**. Press a heading to open or close its section; a closed one says in a line what it holds. Each of the last three has its own reset. The pane opens as it was left: on the mode you were choosing for, with the same sections open.
 
@@ -101,7 +101,7 @@ The theme draws in the Claude desktop and mobile apps. The terminal and the edit
 
 - At `session.start` the plugin reads its settings from `$.store`, works out the look and calls `$.theme.set` with the colors for both modes and a backdrop scene. After `/clear`, which raises no `session.start`, the next prompt sets the theme again.
 - The app's colors come from the design system's own builder, `make-colors.js`, which ships inside Claude Code's `plugin-authoring` skill and is copied here unchanged. The plugin gives it a few colors a mode and it names the hundred the app needs.
-- The Desktop app ignores a whole theme when one piece of text falls under its contrast floor. A scheme that would fail is eased until it passes: flatter surfaces first, then the one role color at fault is left to the app's own.
+- The Desktop app ignores a whole theme when one piece of text falls under its contrast floor. A scheme that would fail is eased until it passes, and each complaint says how: text too dim on one of the app's own highlights is pushed further from the background, otherwise the surfaces are flattened, and then the one role color at fault is left to the app's own. Saving a scheme of your own says what was eased. Of the 912 schemes in iTerm2-Color-Schemes, 890 are painted; the other 22 have a background between dark and light, which the app paints in neither mode, and saving one says so.
 - The sea's shades are the background moved lighter or darker in OKLCH, with its hue and chroma kept, until they reach a set contrast: 1.1 at depth 1 to 2.0 at depth 10 for the ribbons, and 1.5 at tone 1 to 4.2 at tone 10 for the shark. Mixing in the foreground instead grays a warm background, since a scheme's text is rarely its background's hue.
 - Text is held to 7:1 on the worst ground it is read on: the page, a card, the water, the water under a ribbon, and a filled control on a menu.
 - A `ui.render` hook on `Backdrop` answers the scene with one SVG. The SVG holds no script; it animates with its own CSS. The surface tells a scene nothing about light or dark, so the SVG carries both modes' palettes and switches with a `prefers-color-scheme` media query.
@@ -114,7 +114,7 @@ The theme draws in the Claude desktop and mobile apps. The terminal and the edit
 
 - **One theme per session.** A session has a single theme, and the latest `$.theme.set` wins. Run this plugin with another theme plugin and whichever sets its theme last is the one shown.
 - **The appearance setting is the app's.** The plugin cannot tell or change whether the app is in light or dark mode; the pane opens on dark mode's schemes.
-- **The scene restarts when the look changes.** The SVG cannot read the clock, so its animation starts over whenever it is drawn again: after a change in the pane or a plugin reload, the shark jumps back to its starting point.
+- **The scene restarts when the sea changes.** The SVG cannot read the clock, so its animation starts over whenever it is drawn again, and the shark jumps back to its starting point: after a change to the sea, the shark, the glass or the scheme, and after a plugin reload. A change that leaves the drawing alone (layers, accent, code theme, contrast, a step past its limit) keeps the sea as it is.
 - **Other sessions catch up later.** Settings are shared, but a session already open draws a change made elsewhere only when it next sets its theme: on a reload, a `/clear`, or a change in its own pane.
 - **Reduced motion.** When the system asks for reduced motion, everything rests in place.
 - **Code highlighting.** A shipped scheme names its matching code theme, which takes the place of the one chosen in the app's Appearance settings while the theme is on; **Use the scheme's code theme** turns that off. Tokyo Night Day and Nord Light have no matching theme and color code from the scheme itself.
