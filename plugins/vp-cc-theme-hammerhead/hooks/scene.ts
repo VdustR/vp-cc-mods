@@ -207,9 +207,9 @@ svg {
 }
 @media (prefers-color-scheme: light) {
   svg {
-    --deep: #c5ddc9; --mid: #dde6cf; --shallow: #f4f0d9; --glow: #fdf6e3;
-    --light: #fff; --band-o: .42; --crest-o: .75;
-    --shark: #708089; --shark-o: .55;
+    --deep: #9fc4b3; --mid: #bdd6c2; --shallow: #dbe5cd; --glow: #f4f0d9;
+    --light: #fff; --band-o: .62; --crest-o: .95;
+    --shark: #5c6a72; --shark-o: .62;
     --shadow: #5c7a70; --shadow-o: .13;
     --speck: #fff; --speck-o: .9;
   }
@@ -223,7 +223,7 @@ svg {
 .shadow { fill: var(--shadow); opacity: var(--shadow-o); }
 
 .band { fill: url(#ribbon); }
-.crest { fill: none; stroke: var(--light); stroke-width: 1.5; stroke-opacity: var(--crest-o); }
+.crest { fill: none; stroke: var(--light); stroke-width: 1.8; stroke-opacity: var(--crest-o); }
 .flow { animation: linear infinite; }
 .flow.left { animation-name: flow-left; }
 .flow.right { animation-name: flow-right; transform: translateX(calc(var(--wave) * -1)); }
