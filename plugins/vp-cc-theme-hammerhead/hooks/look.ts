@@ -6,7 +6,7 @@
 
 import type { ThemeColors } from 'claude-code'
 
-import { contrast, luminance, mix, opacityFor, pushTo, toLch } from './color'
+import { contrast, fromLch, luminance, mix, opacityFor, pushTo, toLch } from './color'
 import { makeColors } from './make-colors.js'
 import type { Scheme } from '../types'
 
@@ -40,8 +40,6 @@ type Half = { gray: { anchors: Anchors }; roles?: Partial<Record<Role, string>>;
 
 // How much a ribbon, its crest and the shark stand out from the water, as contrast ratios. Measured from the
 // hand-tuned Gruvbox night sea and Everforest lagoon this plugin started with.
-const BAND = 1.3
-const CREST = 1.6
 const SHARK = 2.4
 
 /** A scheme belongs to the mode its background is in. */
@@ -64,40 +62,66 @@ function stronger(scheme: Scheme, normal: string, bright: string): string {
 }
 
 /**
- * The sea under a scheme, in the scheme's own colors.
- *
- * The water is the background. The ribbons and the shark are the foreground, so they are light on a dark scheme and
- * dark on a light one, as the words are. Only their opacity is worked out, to reach the same contrast on every scheme.
+ * The background at another lightness: the same hue and chroma in OKLCH, moved lighter or darker until it reaches
+ * `target` contrast against the background itself. Mixing in the foreground instead grays a warm background, since
+ * a scheme's text is rarely its background's hue, and the water then looks dirty.
  */
-export function seaOf(scheme: Scheme): Sea {
+function shade(background: string, target: number, isLighter: boolean): string {
+  const [lightness, chroma, hue] = toLch(background)
+  let out = background
+  for (let step = 0.005; step <= 1 && contrast(out, background) < target; step += 0.005) {
+    out = fromLch([lightness + (isLighter ? step : -step), chroma, hue])
+  }
+
+  return out
+}
+
+/** The contrast between the water and its ribbons at a depth level, 1 (barely there) to 10 (deep). */
+export function depthContrast(depth: number): number {
+  return 1 + Math.max(1, Math.min(10, depth)) * 0.1
+}
+
+/**
+ * The sea under a scheme, at a depth level.
+ *
+ * The ribbons are always the lighter of the two, as light on water is, and `depth` sets how far apart they are.
+ * On a dark scheme the water is the background, level with the app's panels, and the ribbons are a lighter shade
+ * of it. A light scheme has no room above its background, so there the ribbons are the background and the water
+ * is a darker shade of it. The shark is a shade further from the water: paler on a dark scheme, darker on a light
+ * one.
+ */
+export function seaOf(scheme: Scheme, depth: number): Sea {
   const isDark = modeOf(scheme) === 'dark'
-  const { background, foreground } = scheme
+  const { background } = scheme
+  const step = depthContrast(depth)
+  const water = isDark ? background : shade(background, step, false)
+  const ribbon = isDark ? shade(background, step, true) : background
+  const shark = shade(water, SHARK, isDark)
   const glint = stronger(scheme, scheme.yellow, scheme.brightYellow)
-  const hasGlint = contrast(glint, background) >= 3
-  // A shadow has to be darker than the water. On a light scheme the foreground is; on a dark one the scheme's black
-  // is, unless the background is already that black.
-  const shade = isDark ? scheme.black : foreground
-  const shadow = contrast(shade, background) >= 1.3 && luminance(shade) < luminance(background) ? shade : '#000000'
+  const hasGlint = contrast(glint, water) >= 3
+  // A shadow is darker than the water on either kind of scheme; on water already near black it is black.
+  const dim = shade(water, 1.5, false)
 
   return {
-    deep: background,
-    mid: background,
-    shallow: background,
-    glow: mix(background, foreground, 0.1),
-    light: foreground,
-    bandOpacity: opacityFor(background, foreground, BAND, 0.9),
-    crestOpacity: opacityFor(background, foreground, CREST, 1),
-    shark: foreground,
-    sharkOpacity: opacityFor(background, foreground, SHARK, 0.9),
-    shadow,
-    shadowOpacity: isDark ? 0.2 : 0.13,
-    speck: hasGlint ? glint : foreground,
+    deep: water,
+    mid: water,
+    shallow: water,
+    glow: mix(water, ribbon, 0.3),
+    light: ribbon,
+    // A ribbon's body is half as strong as its crest line.
+    bandOpacity: opacityFor(water, ribbon, 1 + (step - 1) * 0.5, 0.9),
+    crestOpacity: 1,
+    shark,
+    sharkOpacity: 1,
+    shadow: contrast(dim, water) >= 1.3 ? dim : '#000000',
+    shadowOpacity: isDark ? 0.5 : 0.35,
+    speck: hasGlint ? glint : ribbon,
     speckOpacity: hasGlint ? 0.5 : 0.9,
   }
 }
 
 /** The app's colors for one mode, as the design system's color builder takes them. `lift` scales the surface steps. */
-function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>): Half {
+function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>, depth: number): Half {
   const isDark = modeOf(scheme) === 'dark'
   const { background, foreground } = scheme
   const far = isDark ? '#ffffff' : '#000000'
@@ -105,8 +129,9 @@ function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>): Half 
   // foreground in dark mode, toward white in light mode, where the design system wants cards lighter than the page.
   const steps = (isDark ? [0.02, 0.04, 0.05] : [0.35, 0.7, 0.7]).map(amount => mix(background, isDark ? foreground : '#ffffff', amount * lift))
   // Words are read on the page, on cards and straight on the sea, under a ribbon too: hold them to the worst.
-  const sea = seaOf(scheme)
-  const grounds = [background, steps[2]!, sea.mid, mix(sea.mid, sea.light, sea.bandOpacity)]
+  const sea = seaOf(scheme, depth)
+  // The last ground stands for a filled control on a menu, the lightest thing dim text sits on in the app.
+  const grounds = [background, steps[2]!, sea.mid, mix(sea.mid, sea.light, sea.bandOpacity), mix(steps[2]!, foreground, 0.1)]
   const worst = (text: string): string => grounds.reduce((low, ground) => (contrast(text, ground) < contrast(text, low) ? ground : low))
   const reach = (text: string, target: number): string => {
     let out = text
@@ -164,7 +189,7 @@ function blocker(problems: readonly string[]): string | undefined {
  * under its floor, so a scheme that fails is eased until it passes: flatter surfaces first, then the one role
  * color the complaint names is left to the app's own, then all of them.
  */
-function paintable(scheme: Scheme): Half {
+function paintable(scheme: Scheme, depth: number): Half {
   const mode = modeOf(scheme)
   const tryOne = (half: Half): string | undefined => {
     try {
@@ -175,24 +200,24 @@ function paintable(scheme: Scheme): Half {
   }
   const dropped = new Set<Role>()
   for (const lift of [1, 0.5, 0]) {
-    const half = halfOf(scheme, lift, dropped)
+    const half = halfOf(scheme, lift, dropped, depth)
     if (tryOne(half) === undefined) return half
   }
   for (let round = 0; round < ROLES.length; round++) {
-    const half = halfOf(scheme, 0, dropped)
+    const half = halfOf(scheme, 0, dropped, depth)
     const complaint = tryOne(half)
     if (complaint === undefined) return half
     const named = ROLES.find(role => !dropped.has(role) && complaint.includes(`-${role}`))
     dropped.add(named ?? ROLES.find(role => !dropped.has(role))!)
   }
-  const bare = halfOf(scheme, 0, new Set(ROLES))
+  const bare = halfOf(scheme, 0, new Set(ROLES), depth)
   if (tryOne(bare) === undefined) return bare
 
   return { gray: { anchors: { 'surface-0': bare.gray.anchors['surface-0'], 'text-primary': bare.gray.anchors['text-primary'] } } }
 }
 
 /** The app's colors for a dark scheme and a light one. */
-export function colorsOf(dark: Scheme, light: Scheme, isHighContrast = false): ThemeColors {
+export function colorsOf(dark: Scheme, light: Scheme, depth: number, isHighContrast = false): ThemeColors {
   const codeTheme = {
     ...(dark.codeTheme === undefined ? {} : { dark: dark.codeTheme }),
     ...(light.codeTheme === undefined ? {} : { light: light.codeTheme }),
@@ -201,14 +226,14 @@ export function colorsOf(dark: Scheme, light: Scheme, isHighContrast = false): T
   return makeColors({
     label: `${dark.name} / ${light.name}`.slice(0, 64),
     id: 'vp-cc-theme-hammerhead',
-    dark: paintable(dark),
-    light: paintable(light),
+    dark: paintable(dark, depth),
+    light: paintable(light, depth),
     ...(Object.keys(codeTheme).length === 0 ? {} : { codeTheme }),
     ...(isHighContrast ? { contrast: 'more' as const } : {}),
   }).theme
 }
 
 /** Whether the Desktop app paints these colors: for a test, and to tell a person their scheme was eased. */
-export function isPainted(dark: Scheme, light: Scheme): boolean {
-  return blocker(makeColors({ label: 'check', dark: paintable(dark), light: paintable(light) }).problems) === undefined
+export function isPainted(dark: Scheme, light: Scheme, depth: number): boolean {
+  return blocker(makeColors({ label: 'check', dark: paintable(dark, depth), light: paintable(light, depth) }).problems) === undefined
 }

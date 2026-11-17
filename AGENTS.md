@@ -75,7 +75,7 @@ What the API has:
 
 What fails without an error:
 
-- **A backdrop is drawn again only for a scene name the app has not drawn.** A later `$.theme.set` with the same `scene` recolors the app and leaves the old SVG behind it. Name each drawing's scene differently, for example `sea-1`, `sea-2`, and match the name by its prefix in the render hook.
+- **A backdrop is drawn again only for a scene name the app has not drawn.** A later `$.theme.set` with the same `scene` recolors the app and leaves the old SVG behind it. Name each drawing's scene differently, for example `sea-1`, `sea-2`, and match the name by its prefix in the render hook. A count alone starts again when the module reloads, so add something that differs a load, such as a random seed. Whether a name drawn before a reload is really kept was not checked on its own.
 - **The Desktop app ignores a whole theme when one piece of text is under its contrast floor.** `makeColors` lists that as a problem line starting `Desktop won't paint`. Check for it at run time when the colors come from a person, and ease the palette until the line is gone.
 - A `/clear` raises `session.end` with `reason: 'clear'` and no `session.start`, and the theme goes with it. Set it again on the next `prompt.submit`.
 
@@ -85,6 +85,7 @@ Building colors:
 - In dark mode keep `surface-3` close to `surface-0`: a light menu surface is the usual cause of a theme the app will not paint. In both modes `surface-0` is the darkest surface.
 - A role's seed keeps its hue and the design system sets its lightness, so making a seed lighter or darker does not fix a role that fails. Leaving that one role out, which keeps the app's own, does.
 - From a terminal scheme (background, foreground, 16 colors): of 912 schemes in mbadolato/iTerm2-Color-Schemes, a plain mapping (background as `surface-0`, foreground as text, the rest filled in) painted 589, small fixed surface steps painted 743, and flattening those steps painted 789. Leaving out the failing role, the next step, was run on the shipped schemes only, not on the whole collection. In a light scheme the "bright" colors are often the darker ones, and in Solarized the bright slots hold grays, so pick the bright twin only when it is the same hue and contrasts more.
+- For a shade of a color, move its lightness in OKLCH and keep its hue and chroma. Laying the foreground over the background at some opacity grays a warm background, since a scheme's text is rarely its background's hue, and the result looks dirty.
 - A scene is told nothing about light or dark. Carry both palettes in the SVG and switch with `@media (prefers-color-scheme: light)`, which the Desktop app honors, as it does `prefers-reduced-motion`.
 
 ### Hotkeys in the band
@@ -170,14 +171,28 @@ git -C ~/repo/VdustR/vp-cc-mods switch main
 
 Do this for any change to drawing or interaction, because the Desktop app draws elements differently from the terminal.
 
+A dev copy, to try the working tree in a Desktop session without touching the live clone:
+
+```bash
+node scripts/dev-copy.mjs vp-cc-<name> <session-id>
+```
+
+- It copies the plugin to `~/.claude/dev-mods/<session-id>/dev-vp-cc-<name>/` and writes `dev-` before the plugin's name everywhere inside: the manifest, the `PluginState` key, the atoms and the slash command.
+- The session must have mods from that folder turned on. Asking Claude for a mod there (the `plugin-authoring` skill) asks the person once.
+- **The copy is a separate plugin.** Its command is `/dev-vp-cc-<name>`, and its pane and its `$.store` are its own. The installed plugin keeps `/vp-cc-<name>`, its own pane and its own settings. Two panes with the same title can be open at once: the one opened with the `/dev-` command belongs to the copy.
+- **It reloads when a turn ends**, not while one runs. Run the script again after an edit, then end the turn; to go on without the person, start a short background command first and continue when its notification arrives. `$.store` and `$.state` survive the reload; module variables do not.
+- **Remove it when the change is merged**: delete the `dev-vp-cc-<name>` folder, or the session keeps running both.
+- Edits made in the copy are lost on the next run. For something the copy alone should do, such as opening its pane at `session.start`, patch the copy after the script, from a scratch script of your own.
+
 Driving the Desktop app from a session, to check a mod without the person's hands:
 
-- **Hot reload.** A mod in `~/.claude/dev-mods/<session-id>/<name>/` reloads when the turn that changed it ends, not while it runs. Copy the plugin there under another name (replace the plugin name everywhere, the `PluginState` key included), start a short background command, end the turn, and continue when its notification arrives. `$.store` and `$.state` survive the reload; module variables do not. The dev copy has its own store, apart from the installed plugin's.
 - **A pane without typing a command.** Have the dev copy open its pane at `session.start`. Typing a slash command into the prompt box from a tool sends a message into the session.
 - **`agent-desktop`.** Several processes are named Claude, so `--app Claude` is ambiguous: take the main window's id from `agent-desktop list-windows` and pass `--window-id`. The app's buttons refuse a headless click; `--headed` clicks them and takes the pointer, so do it only with the person's leave. Find a control by its accessible name in `snapshot -i --compact`, which is why labels must be unique. Take a fresh snapshot before `type`: a ref from before a click goes stale.
 - **Light and dark.** There is no API for the app's mode. Open Settings (the `Code settings` button), then `Appearance`, then the `Light`, `Dark` or `System` radio button, then `Close`. Note which was selected first and put it back.
 - **What accessibility does not show.** The options of the app's dropdowns, such as the code theme list, and colors. Read those from a screenshot. For a color question, crop the same region from two screenshots at full size and compare: a scaled screenshot hides a change of hue.
 - **Pasting.** To put a long text in a field, copy it with `pbcopy`, select all, paste, and restore the clipboard afterwards.
+- **Two copies of a theme fight.** With the installed plugin and a dev copy both loaded, the latest `$.theme.set` wins, and after the dev copy reloads the installed one sets its look again on the next prompt. What is on screen is then the installed look, while the dev pane still shows the dev settings. Have the dev copy set its look again a moment after `session.start` and after each `prompt.submit` (`$.clock.sleep`, then set), in the dev copy only.
+- **Check the picture apart from the app.** When a look seems wrong in the app, bundle the scene code (`npx esbuild --bundle`), write the SVG to a file, and open it in a browser with the color scheme set to light, then dark. That shows whether the drawing or the loading is at fault.
 - **The person may be using the app too.** A setting that changed between two of your steps may be their doing. Leave their choices as you found them.
 
 ### 5. Version and docs

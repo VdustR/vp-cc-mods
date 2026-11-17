@@ -1,6 +1,6 @@
 {
   "name": "vp-cc-theme-hammerhead",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A calm desktop theme from any terminal color scheme: one for dark mode and one for light, with a hammerhead silhouette cruising a slow sea behind the chat",
   "types": "./types/index.d.ts",
   "author": {
