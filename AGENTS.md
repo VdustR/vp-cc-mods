@@ -54,7 +54,38 @@ To prototype, ask Claude in any session for a mod (the built-in `plugin-authorin
 - Draw a plugin's band block behind its name tag, so the person can tell it apart from other mods' blocks: put `<Text inverse bold>{' <short name> '}</Text>` (the plugin name without `vp-cc-`) and the block side by side in a `<Box gap={1} alignItems="flex-start">`. The tag is never translated and never drawn alone.
 - Give every Button of a new plugin a key prefixed with the plugin's short name (`<short name>:<action>`), and take hotkeys only from the table below, so two plugins drawing at once never claim the same key. `vp-cc-recap` predates this rule and keeps its unprefixed keys.
 - Every session on the machine shares a plugin's `$.store`, and a read followed by a write is not atomic. Keep each record under its own key (`item:<id>`) and read again right before a write.
+- Inside `declare module 'claude-code'` in `types/index.d.ts`, a type name resolves to Claude Code's own type of that name first. A contract that names its value `Settings` gets Claude Code's `Settings` (`Record<string, unknown>`), and every read of the atom is then untyped. Give the plugin's types names Claude Code does not use, such as `LookSettings`. The contract must also be self-contained: `claude plugin validate` refuses an `import` in it, so the hooks import shared types from `../types`, not the other way.
+- A mod that sets a theme or draws a backdrop follows [Themes and backdrops](#themes-and-backdrops) below.
+- Give every Button in one drawing its own label, not only its own key. The label is the control's accessible name: two buttons both labelled `Remove`, or a `Standard` in two rows, cannot be told apart by a screen reader or by an automation tool, which then presses the first one. An `Input` with no `label` is named by its `key`.
+- `$.model.complete({ model, system, prompt, maxTokens })` answers a question that needs nothing from the conversation, and sends none of it. `$.model.fork` is for a question about the session. A reply may wrap JSON in a code fence or a sentence, so read from the first brace to the last.
 - `$.ui.status` raised no error in the Desktop app, but nothing appeared under the prompt there (checked on engine 2.1.286). Draw in the band instead.
+
+### Themes and backdrops
+
+Everything here was checked on engine 2.1.325 in the Desktop app, with `vp-cc-theme-hammerhead`.
+
+What the API has:
+
+- `$.theme.set` takes three things: `colors`, `backdrop` and `overrideColorScheme`. There is no radius, font, shadow or spacing. `colors` holds about 100 color tokens a mode, plus `codeTheme` and `contrast: 'more'`.
+- The Desktop app ignores `overrideColorScheme`: a mod cannot pin light or dark, and cannot read which one the app is in. Give both modes and let the app pick.
+- `backdrop` is a scene (an SVG a `ui.render` hook on `Backdrop` answers, with `glass`) or a still ground (`{ color }`, `{ gradient }`, `{ image }`, `{ vector }`, no hook and no glass). `{ color: 'surface-0' }` is the page's own color and follows the mode.
+- `glass` is `{ blur, tint, opacity }` or `false`. It frosts the whole conversation area over the scene, not only the side panels: at blur 14 and opacity 0.62 the scene is gone, at blur 4 and opacity 0.4 it is soft, and `false` shows it at full strength.
+- `codeTheme: { light, dark }` works, and takes the place of the code theme chosen in the app's Appearance settings while the theme is set. The names are the Shiki theme ids: `catppuccin-latte` and `gruvbox-light-medium` were seen to apply. The app keeps its own for a name it does not offer, with no error. Without `codeTheme`, code is colored from the roles.
+- A session has one theme, and the latest `$.theme.set` wins.
+
+What fails without an error:
+
+- **A backdrop is drawn again only for a scene name the app has not drawn.** A later `$.theme.set` with the same `scene` recolors the app and leaves the old SVG behind it. Name each drawing's scene differently, for example `sea-1`, `sea-2`, and match the name by its prefix in the render hook.
+- **The Desktop app ignores a whole theme when one piece of text is under its contrast floor.** `makeColors` lists that as a problem line starting `Desktop won't paint`. Check for it at run time when the colors come from a person, and ease the palette until the line is gone.
+- A `/clear` raises `session.end` with `reason: 'clear'` and no `session.start`, and the theme goes with it. Set it again on the next `prompt.submit`.
+
+Building colors:
+
+- Copy `make-colors.js` and `make-colors.d.ts` from the `plugin-authoring` skill's folder into `hooks/` unchanged, import `./make-colors.js`, and call `makeColors` at run time. Copy them again when Claude Code updates. `claude plugin validate` and the English-only check accept the file.
+- In dark mode keep `surface-3` close to `surface-0`: a light menu surface is the usual cause of a theme the app will not paint. In both modes `surface-0` is the darkest surface.
+- A role's seed keeps its hue and the design system sets its lightness, so making a seed lighter or darker does not fix a role that fails. Leaving that one role out, which keeps the app's own, does.
+- From a terminal scheme (background, foreground, 16 colors): of 912 schemes in mbadolato/iTerm2-Color-Schemes, a plain mapping (background as `surface-0`, foreground as text, the rest filled in) painted 589, small fixed surface steps painted 743, and flattening those steps painted 789. Leaving out the failing role, the next step, was run on the shipped schemes only, not on the whole collection. In a light scheme the "bright" colors are often the darker ones, and in Solarized the bright slots hold grays, so pick the bright twin only when it is the same hue and contrasts more.
+- A scene is told nothing about light or dark. Carry both palettes in the SVG and switch with `@media (prefers-color-scheme: light)`, which the Desktop app honors, as it does `prefers-reduced-motion`.
 
 ### Hotkeys in the band
 
@@ -68,7 +99,12 @@ Add a row when a plugin takes a hotkey.
 
 - In a test, `$.prompt.submit` from the test raises `prompt.submit` with no `origin`. A hook that reads `e.origin` must allow for that.
 - A test that stubs a method event answers it with `{ value }`, including `ui.toast` (`{ value: undefined }`).
-- The test's `$` has no `$.store`; check what a plugin stored through what it draws or answers.
+- The test's `$` has no `$.store`, and a plugin's own `$.store` has nothing beneath it: stub `store.get` and `store.set` (each answers `{ value }`), or every read in the plugin rejects. Keep the stub's map to check what the plugin stored.
+- A hook that swallows its errors hides a missing stub: the test sees nothing happen. When a plugin does nothing in a test, look for a `$` call with no hook beneath it first (`store.get`, `command.register`, `ui.open`, `model.complete`).
+- Register every stub before the test first calls `$`: an `on(...)` after that throws. To run one body on several surfaces, loop outside and make one `test` a surface, not one test that sets up twice.
+- Work a hook starts without awaiting (`void apply($)`) may not have finished when the raising call resolves. Give it a moment before asserting. The module environment has `setTimeout` but declares no type for it.
+- The kit's types refuse some valid stubs and targets: a `{ value }` answer for `command.register` or `model.complete`, and a `Pane` mounted with `props: {}`. Cast those to `never`; the tests run either way.
+- Tests do not paint. They show that a look is set and what it holds, not what it looks like.
 - `session.start` does not run under `claude plugin test` unless the test raises it. Read what a plugin needs from the session (its root, for example) lazily, not only in `session.start`, or the tests never exercise it.
 
 ## Official resources
@@ -133,6 +169,16 @@ git -C ~/repo/VdustR/vp-cc-mods switch main
 ```
 
 Do this for any change to drawing or interaction, because the Desktop app draws elements differently from the terminal.
+
+Driving the Desktop app from a session, to check a mod without the person's hands:
+
+- **Hot reload.** A mod in `~/.claude/dev-mods/<session-id>/<name>/` reloads when the turn that changed it ends, not while it runs. Copy the plugin there under another name (replace the plugin name everywhere, the `PluginState` key included), start a short background command, end the turn, and continue when its notification arrives. `$.store` and `$.state` survive the reload; module variables do not. The dev copy has its own store, apart from the installed plugin's.
+- **A pane without typing a command.** Have the dev copy open its pane at `session.start`. Typing a slash command into the prompt box from a tool sends a message into the session.
+- **`agent-desktop`.** Several processes are named Claude, so `--app Claude` is ambiguous: take the main window's id from `agent-desktop list-windows` and pass `--window-id`. The app's buttons refuse a headless click; `--headed` clicks them and takes the pointer, so do it only with the person's leave. Find a control by its accessible name in `snapshot -i --compact`, which is why labels must be unique. Take a fresh snapshot before `type`: a ref from before a click goes stale.
+- **Light and dark.** There is no API for the app's mode. Open Settings (the `Code settings` button), then `Appearance`, then the `Light`, `Dark` or `System` radio button, then `Close`. Note which was selected first and put it back.
+- **What accessibility does not show.** The options of the app's dropdowns, such as the code theme list, and colors. Read those from a screenshot. For a color question, crop the same region from two screenshots at full size and compare: a scaled screenshot hides a change of hue.
+- **Pasting.** To put a long text in a field, copy it with `pbcopy`, select all, paste, and restore the clipboard afterwards.
+- **The person may be using the app too.** A setting that changed between two of your steps may be their doing. Leave their choices as you found them.
 
 ### 5. Version and docs
 
