@@ -22,6 +22,7 @@ export const DEFAULT_LOOK: LookSettings = {
   sharkTone: 4,
   layers: 2,
   accent: 'scheme',
+  isCodeThemed: true,
   isHighContrast: false,
   custom: [],
 }
@@ -113,6 +114,7 @@ export function readSettings(raw: unknown): LookSettings {
     sharkTone: typeof stored.sharkTone === 'number' && Number.isInteger(stored.sharkTone) && stored.sharkTone >= 1 && stored.sharkTone <= 10 ? stored.sharkTone : 4,
     layers: typeof stored.layers === 'number' && Number.isInteger(stored.layers) && stored.layers >= 0 && stored.layers <= 6 ? stored.layers : 2,
     accent: ACCENTS.includes(stored.accent as Accent) ? (stored.accent as Accent) : 'scheme',
+    isCodeThemed: stored.isCodeThemed !== false,
     isHighContrast: stored.isHighContrast === true,
     custom,
   }

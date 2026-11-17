@@ -60,6 +60,8 @@ export type LookSettings = {
   /** How far cards, panels and menus step away from the page, 0 (flat) to 6. The default is 2. */
   layers: number
   accent: Accent
+  /** Whether code takes the highlighting theme the scheme names, in place of the app's own choice. */
+  isCodeThemed: boolean
   /** Stronger borders and focus rings across the app. */
   isHighContrast: boolean
   /** Schemes the person pasted or asked the model for. */

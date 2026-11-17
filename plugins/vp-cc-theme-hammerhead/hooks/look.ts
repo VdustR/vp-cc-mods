@@ -130,6 +130,8 @@ export type Tuning = {
   /** How far the surfaces step apart, 0 to 6, where 2 is the plugin's own. */
   layers: number
   accent: Accent
+  /** Whether to name each scheme's own code theme. Without it the app keeps the code theme the person chose there. */
+  isCodeThemed: boolean
 }
 
 /**
@@ -239,10 +241,12 @@ function paintable(scheme: Scheme, tuning: Tuning): Half {
 
 /** The app's colors for a dark scheme and a light one. */
 export function colorsOf(dark: Scheme, light: Scheme, tuning: Tuning, isHighContrast = false): ThemeColors {
-  const codeTheme = {
-    ...(dark.codeTheme === undefined ? {} : { dark: dark.codeTheme }),
-    ...(light.codeTheme === undefined ? {} : { light: light.codeTheme }),
-  }
+  const codeTheme = tuning.isCodeThemed
+    ? {
+        ...(dark.codeTheme === undefined ? {} : { dark: dark.codeTheme }),
+        ...(light.codeTheme === undefined ? {} : { light: light.codeTheme }),
+      }
+    : {}
 
   return makeColors({
     label: `${dark.name} / ${light.name}`.slice(0, 64),

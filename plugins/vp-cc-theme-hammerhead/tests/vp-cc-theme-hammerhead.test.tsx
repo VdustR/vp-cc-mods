@@ -142,17 +142,17 @@ test('every shipped scheme is painted by the Desktop app and keeps its waves, it
     const isDark = modeOf(scheme) === 'dark'
     // Flat and far-apart surfaces, and an accent taken from each end of the scheme's colors.
     for (const tuning of [
-      { depth: 3, layers: 0, accent: 'scheme' },
-      { depth: 3, layers: 6, accent: 'scheme' },
-      { depth: 3, layers: 2, accent: 'red' },
-      { depth: 3, layers: 2, accent: 'cyan' },
+      { depth: 3, layers: 0, accent: 'scheme', isCodeThemed: true },
+      { depth: 3, layers: 6, accent: 'scheme', isCodeThemed: true },
+      { depth: 3, layers: 2, accent: 'red', isCodeThemed: true },
+      { depth: 3, layers: 2, accent: 'cyan', isCodeThemed: true },
     ] as const) {
       expect(isPainted(isDark ? scheme : darks[0]!, isDark ? lights[0]! : scheme, tuning)).toBe(true)
     }
     // The shallowest, the default and the deepest sea: each depth moves the ground the text is read on.
     for (const depth of [1, 3, 10]) {
       // The Desktop app ignores a whole theme when one piece of text is under its floor.
-      expect(isPainted(isDark ? scheme : darks[0]!, isDark ? lights[0]! : scheme, { depth, layers: 2, accent: 'scheme' })).toBe(true)
+      expect(isPainted(isDark ? scheme : darks[0]!, isDark ? lights[0]! : scheme, { depth, layers: 2, accent: 'scheme', isCodeThemed: true })).toBe(true)
 
       const sea = seaOf(scheme, depth, 1)
       const crest = mix(sea.mid, sea.light, sea.crestOpacity)
@@ -226,6 +226,10 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await ui.press({ key: 'hammerhead:layers-up' })
     await ui.press({ key: 'hammerhead:accent-cyan' })
     expect(store.get('settings')).toMatchObject({ layers: 3, accent: 'cyan' })
+    // The scheme's code theme is named until the person turns it off, and then the app keeps its own.
+    expect((looks.at(-1)?.colors as { codeTheme?: { dark?: string } } | undefined)?.codeTheme?.dark).toBe('catppuccin-mocha')
+    await ui.press({ key: 'hammerhead:code-theme' })
+    expect((looks.at(-1)?.colors as { codeTheme?: object } | undefined)?.codeTheme).toBeUndefined()
     await ui.press({ key: 'hammerhead:contrast' })
     expect(store.get('settings')).toMatchObject({ waves: 7, glints: 10, waveSpeed: 125, sharkTone: 5, isHighContrast: true })
     expect((looks.at(-1)?.colors as { contrast?: string } | undefined)?.contrast).toBe('more')

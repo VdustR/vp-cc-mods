@@ -51,6 +51,7 @@ Every change is drawn at once and kept for every session on the machine.
 | **Shark size** and **Swim speed** | 50% to 200% of its own, in steps of 25. |
 | **Layers** | How far cards, panels and menus step away from the page, 0 (flat) to 6. The default is 2. |
 | **Accent** | The color of buttons, links and switches: the scheme's own choice, or the scheme's red, yellow, green, cyan, blue or purple. |
+| **Use the scheme's code theme** | On, code takes the highlighting theme that matches the scheme. Off, the app keeps the code theme chosen in its Appearance settings. |
 | **Stronger borders** | Asks the app for stronger borders and focus rings. |
 | **Reset to defaults** | Back to Gruvbox Dark and Catppuccin Latte with the standard sea. Your own schemes are kept. |
 
@@ -113,7 +114,7 @@ The theme draws in the Claude desktop and mobile apps. The terminal and the edit
 - **The scene restarts when the look changes.** The SVG cannot read the clock, so its animation starts over whenever it is drawn again: after a change in the pane or a plugin reload, the shark jumps back to its starting point.
 - **Other sessions catch up later.** Settings are shared, but a session already open draws a change made elsewhere only when it next sets its theme: on a reload, a `/clear`, or a change in its own pane.
 - **Reduced motion.** When the system asks for reduced motion, everything rests in place.
-- **Code highlighting.** A shipped scheme names its matching code theme, which then takes the place of the one chosen in the app's Appearance settings while the theme is on. Tokyo Night Day and Nord Light have no matching theme and color code from the scheme itself.
+- **Code highlighting.** A shipped scheme names its matching code theme, which takes the place of the one chosen in the app's Appearance settings while the theme is on; **Use the scheme's code theme** turns that off. Tokyo Night Day and Nord Light have no matching theme and color code from the scheme itself.
 - **Not adjustable:** corner radius, fonts, shadows and spacing. A theme is colors, the backdrop and its glass.
 - **Bubbles cannot be styled on their own.** A message bubble is one of the app's panels, so blur and veil change every panel together, and a veil's color is the app's own. A tint is not offered: it is one raw color for both modes and could not follow light and dark.
 - **The pane is in English.** Its labels are not translated.
