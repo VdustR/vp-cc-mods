@@ -12,6 +12,12 @@
       "source": "./plugins/vp-cc-recap",
       "description": "An ADHD-friendly session recap above the prompt, on demand and after you have been idle.",
       "keywords": ["mod", "recap", "adhd", "focus"]
+    },
+    {
+      "name": "vp-cc-theme-hammerhead",
+      "source": "./plugins/vp-cc-theme-hammerhead",
+      "description": "A calm desktop theme: Gruvbox in dark mode, Everforest in light mode, and a hammerhead silhouette cruising a slow sea behind the chat.",
+      "keywords": ["mod", "theme", "gruvbox", "everforest", "backdrop"]
     }
   ]
 }
