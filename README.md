@@ -15,6 +15,7 @@ Mods change how Claude Code itself looks and behaves: they draw above the prompt
 | Plugin | Value | Docs |
 | :- | :- | :- |
 | `vp-cc-recap` | After a break, see the one next step and start it with one keypress. The recap appears above the prompt on demand or after you have been idle, in the language you write in. | [README](plugins/vp-cc-recap/README.md) |
+| `vp-cc-theme-hammerhead` | A calmer place for long sessions in the desktop app: Gruvbox colors in dark mode, Everforest in light mode, and a hammerhead silhouette cruising a slow sea behind the chat. | [README](plugins/vp-cc-theme-hammerhead/README.md) |
 
 ## Install
 
