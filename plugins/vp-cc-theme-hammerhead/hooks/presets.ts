@@ -123,4 +123,4 @@ export const PRESETS: readonly Scheme[] = [
 ]
 
 /** The scheme each mode starts with. */
-export const DEFAULTS = { dark: 'Gruvbox Dark', light: 'Everforest Light' } as const
+export const DEFAULTS = { dark: 'Gruvbox Dark', light: 'Catppuccin Latte' } as const
