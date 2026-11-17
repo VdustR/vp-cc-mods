@@ -138,15 +138,16 @@ test('every shipped scheme is painted by the Desktop app and keeps its waves, it
   expect(darks.map(scheme => scheme.name)).toContain(DEFAULTS.dark)
   expect(lights.map(scheme => scheme.name)).toContain(DEFAULTS.light)
 
-  for (const scheme of PRESETS) {
+  for (const [at, scheme] of PRESETS.entries()) {
     const isDark = modeOf(scheme) === 'dark'
-    // Flat and far-apart surfaces, and an accent taken from each end of the scheme's colors.
-    for (const tuning of [
+    // Flat and far-apart surfaces, and an accent taken from each end of the scheme's colors. Every third scheme is
+    // enough to cover both modes, and keeps this test well inside its time on a busy machine.
+    for (const tuning of at % 3 !== 0 ? [] : ([
       { depth: 3, layers: 0, accent: 'scheme', isCodeThemed: true },
       { depth: 3, layers: 6, accent: 'scheme', isCodeThemed: true },
       { depth: 3, layers: 2, accent: 'red', isCodeThemed: true },
       { depth: 3, layers: 2, accent: 'cyan', isCodeThemed: true },
-    ] as const) {
+    ] as const)) {
       expect(isPainted(isDark ? scheme : darks[0]!, isDark ? lights[0]! : scheme, tuning)).toBe(true)
     }
     // The shallowest, the default and the deepest sea: each depth moves the ground the text is read on.

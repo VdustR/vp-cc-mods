@@ -4,7 +4,8 @@
 // The shark is a chain of overlapping segments, each hinged on the one before: body, middle, rear, the stalk of
 // the tail, and the two lobes of its fin. Every hinge swings on the same slow beat, each a little later and a little wider than the one before
 // it, so a wave travels down the body and the tail sweeps a clear S. The head sweeps the other way, as a
-// hammerhead's does. The route is a CSS motion path with `offset-rotate: auto`, so the shark faces where it goes.
+// hammerhead's does. The route is a CSS motion path with `offset-rotate: auto`, so the shark faces where it goes,
+// and it banks into the route's turns: the inner pectoral shortens and the outer one lengthens.
 //
 // The water is drawn as ribbons: bands between two sine curves, each with its own wavelength, height, speed and
 // direction, each also rising and falling on its own period, so their overlaps keep changing.
@@ -78,6 +79,66 @@ function loop(points: readonly Point[], dx = 0, dy = 0): string {
 }
 
 /**
+ * How hard a route turns at equal steps of its length, one number a step: 0 on a straight, up to 1 in a tight turn
+ * to the shark's left (the side of smaller y when it faces +x) and down to -1 in one to its right.
+ *
+ * The route is walked as the same curve `loop` draws, in small straight pieces, so a step here is a step of the
+ * shark's `offset-distance`.
+ */
+function turns(points: readonly Point[], steps: number): number[] {
+  const n = points.length
+  const at = (i: number): Point => points[((i % n) + n) % n]!
+  const walk: Point[] = []
+  for (let i = 0; i < n; i++) {
+    const [x0, y0] = at(i - 1)
+    const [x1, y1] = at(i)
+    const [x2, y2] = at(i + 1)
+    const [x3, y3] = at(i + 2)
+    const c1: Point = [x1 + (x2 - x0) / 6, y1 + (y2 - y0) / 6]
+    const c2: Point = [x2 - (x3 - x1) / 6, y2 - (y3 - y1) / 6]
+    for (let piece = 0; piece < 24; piece++) {
+      const t = piece / 24
+      const u = 1 - t
+      walk.push([
+        u * u * u * x1 + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * x2,
+        u * u * u * y1 + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * y2,
+      ])
+    }
+  }
+  const far: number[] = [0]
+  for (let i = 1; i <= walk.length; i++) {
+    const [ax, ay] = walk[i - 1]!
+    const [bx, by] = walk[i % walk.length]!
+    far.push(far[i - 1]! + Math.hypot(bx - ax, by - ay))
+  }
+  const total = far[walk.length]!
+  /** The point a distance along the route, wrapping round. */
+  const point = (distance: number): Point => {
+    const d = ((distance % total) + total) % total
+    let i = 0
+    while (far[i + 1]! < d) i++
+
+    return walk[i % walk.length]!
+  }
+  // The heading a little behind and a little ahead: their difference over that reach is the turn.
+  const reach = total / steps
+  const out: number[] = []
+  for (let step = 0; step < steps; step++) {
+    const here = (total * step) / steps
+    const [bx, by] = point(here - reach)
+    const [mx, my] = point(here)
+    const [fx, fy] = point(here + reach)
+    const before = Math.atan2(my - by, mx - bx)
+    const after = Math.atan2(fy - my, fx - mx)
+    const turn = Math.atan2(Math.sin(after - before), Math.cos(after - before))
+    // A turn of radius 260 or tighter is a full bank. With y down the screen, a turn to the left is a falling angle.
+    out.push(+Math.max(-1, Math.min(1, (-turn / reach) * 260)).toFixed(2))
+  }
+
+  return out
+}
+
+/**
  * A random closed route around the middle of the window. Its points go round in angle order, so the loop never
  * crosses itself. The loop stays inside the middle of the drawing, where the conversation is: the app's sidebar
  * and side pane cover the drawing's left and right, and a shark that swam under them was out of sight for most of
@@ -124,9 +185,14 @@ const HEAD: Part = [
 /** The front of the body, as wide where it meets the head as further back, with the pectorals: broad at the base, long, pointed and swept back. */
 const BODY: Part = [
   'M94 -28.8 C72 -29.2 48 -29.6 24 -29.8 C8 -30.5 -10 -29.5 -26 -27 L-26 27 C-10 29.5 8 30.5 24 29.8 C48 29.6 72 29.2 94 28.8 Z',
-  'M60 -25 C46 -37 18 -58 -30 -80 C-28 -64 -14 -43 12 -27 Z',
-  'M60 25 C46 37 18 58 -30 80 C-28 64 -14 43 12 27 Z',
 ]
+// The pectorals are angled down from the body, so when the shark banks into a turn the inner one drops away and
+// looks shorter from above while the outer one flattens and looks longer. Each scales across the body about its
+// own root, on keyframes baked from the route's turns.
+const PECTORALS = [
+  { side: 'left', root: -27, d: 'M60 -25 C46 -37 18 -58 -30 -80 C-28 -64 -14 -43 12 -27 Z' },
+  { side: 'right', root: 27, d: 'M60 25 C46 37 18 58 -30 80 C-28 64 -14 43 12 27 Z' },
+] as const
 const MIDDLE: Part = ['M-6 -28.5 C-34 -27 -62 -22 -88 -16 L-88 16 C-62 22 -34 27 -6 28.5 Z']
 /** The rear of the body, narrowing to the stalk, with the small pelvic fins. */
 const REAR: Part = [
@@ -166,14 +232,16 @@ function hinge(x: number, swing: number, lag: number, beat: number, inside: stri
 }
 
 /** The shark's outline, every hinge beating; `beat` is one full sweep, there and back, in seconds. */
-function shark(beat: number): string {
+function shark(beat: number, lap: string): string {
   let chain = LOBES.map(lobe => hinge(lobe.x, lobe.swing, lobe.lag, beat, paths(lobe.part))).join('')
   for (const part of [...HINGES].reverse()) {
     chain = hinge(part.x, part.swing, part.lag, beat, paths(part.part) + chain)
   }
 
   // The whole body yaws a little against the tail, and the head sweeps against the body.
-  return hinge(20, -2, 0.08, beat, `${chain}${paths(BODY)}${hinge(66, -3.5, 0.16, beat, paths(HEAD))}`)
+  const fins = PECTORALS.map(fin => `<g class="bank ${fin.side}" style="transform-origin:20px ${fin.root}px;${lap}"><path d="${fin.d}"/></g>`).join('')
+
+  return hinge(20, -2, 0.08, beat, `${chain}${fins}${paths(BODY)}${hinge(66, -3.5, 0.16, beat, paths(HEAD))}`)
 }
 
 /** A sine curve as a smooth path: sampled a tenth of a wave apart and joined through the midpoints. */
@@ -242,7 +310,12 @@ export function buildScene(seed: number, look: SceneLook): string {
   // One sweep of the tail, there and back, takes about three and a half seconds.
   // A faster shark beats faster, but less than in step, so a quick one does not thrash.
   const beat = +((3.2 + rand() * 0.8) / Math.sqrt(look.speed)).toFixed(2)
-  const outline = `<g transform="scale(${size})">${shark(beat)}</g>`
+  // The fins bank on the lap's own clock, so they lean where the route turns.
+  const lap = `animation-duration:${seconds}s;animation-delay:-${head}s`
+  const outline = `<g transform="scale(${size})">${shark(beat, lap)}</g>`
+  const bends = turns(path, 40)
+  const banked = (side: number): string =>
+    [...bends, bends[0]!].map((bend, at) => `${(at * 2.5).toFixed(1)}%{transform:scaleY(${(1 - side * bend * 0.3).toFixed(2)})}`).join('')
   const mover = (cls: string, dx: number, dy: number) =>
     `<g class="mover ${cls}" style="offset-path:path('${loop(path, dx, dy)}');animation-duration:${seconds}s;animation-delay:-${head}s;--rest:${rest}%">${outline}</g>`
   const count = look.waves
@@ -270,6 +343,9 @@ svg {
 
 .mover { offset-rotate: auto; offset-distance: var(--rest); animation: swim linear infinite; }
 .hinge { transform-box: view-box; animation: beat ease-in-out infinite alternate; }
+.bank { transform-box: view-box; animation: linear infinite; }
+.bank.left { animation-name: bank-left; }
+.bank.right { animation-name: bank-right; }
 .silhouette { fill: var(--shark); opacity: var(--shark-o); }
 .shadow { fill: var(--shadow); opacity: var(--shadow-o); }
 
@@ -285,6 +361,8 @@ svg {
 .drift.back { animation-direction: alternate-reverse; animation-duration: 58s; }
 
 @keyframes swim { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+@keyframes bank-left {${banked(1)}}
+@keyframes bank-right {${banked(-1)}}
 @keyframes beat { from { transform: rotate(calc(var(--swing) * -1)); } to { transform: rotate(var(--swing)); } }
 @keyframes flow-left { from { transform: translateX(0); } to { transform: translateX(calc(var(--wave) * -1)); } }
 @keyframes flow-right { from { transform: translateX(calc(var(--wave) * -1)); } to { transform: translateX(0); } }
