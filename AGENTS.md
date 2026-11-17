@@ -26,7 +26,7 @@ Claude Code writes `.claude-plugin/types/` and a `tsconfig.json` into a mod it l
 
 ## Naming
 
-- Prefix every plugin name, skill name and slash command with `vp-cc-`, for example `vp-cc-recap` and `/vp-cc-recap`.
+- Prefix every plugin name, skill name and slash command with `vp-cc-`, for example `vp-cc-theme-hammerhead` and `/vp-cc-theme-hammerhead`.
 - The directory name under `plugins/` equals the plugin's `name` in `plugin.json` and its entry name in `marketplace.json`.
 - A mod's `$.state` atoms use the plugin name as their `plugin` key, and `types/index.d.ts` declares them under that same key in `PluginState`.
 - Do not start a name with `claude-` or anything else that looks like an Anthropic name; `claude plugin validate` rejects it.
@@ -52,7 +52,7 @@ To prototype, ask Claude in any session for a mod (the built-in `plugin-authorin
 - Do not send anything to the model or the transcript that the feature does not need. A `command.run` hook that has nothing to print returns `{}`.
 - The band above the prompt (`AbovePrompt`) is one site that every mod shares, and a tree returned without the rest of the chain hides every mod drawn after it. Always stack: `const below = await next(e)`, then return `<Box flexDirection="column">{mine}{below}</Box>`, or `below` alone when there is nothing to show.
 - Draw a plugin's band block behind its name tag, so the person can tell it apart from other mods' blocks: put `<Text inverse bold>{' <short name> '}</Text>` (the plugin name without `vp-cc-`) and the block side by side in a `<Box gap={1} alignItems="flex-start">`. The tag is never translated and never drawn alone.
-- Give every Button of a new plugin a key prefixed with the plugin's short name (`<short name>:<action>`), and take hotkeys only from the table below, so two plugins drawing at once never claim the same key. `vp-cc-recap` predates this rule and keeps its unprefixed keys.
+- Give every Button of a new plugin a key prefixed with the plugin's short name (`<short name>:<action>`), and take hotkeys only from the table below, so two plugins drawing at once never claim the same key.
 - Every session on the machine shares a plugin's `$.store`, and a read followed by a write is not atomic. Keep each record under its own key (`item:<id>`) and read again right before a write.
 - Inside `declare module 'claude-code'` in `types/index.d.ts`, a type name resolves to Claude Code's own type of that name first. A contract that names its value `Settings` gets Claude Code's `Settings` (`Record<string, unknown>`), and every read of the atom is then untyped. Give the plugin's types names Claude Code does not use, such as `LookSettings`. The contract must also be self-contained: `claude plugin validate` refuses an `import` in it, so the hooks import shared types from `../types`, not the other way.
 - A mod that sets a theme or draws a backdrop follows [Themes and backdrops](#themes-and-backdrops) below.
@@ -93,7 +93,6 @@ Building colors:
 
 | Plugin | Hotkeys |
 | :- | :- |
-| `vp-cc-recap` | `1`, `2`, `3` |
 
 Add a row when a plugin takes a hotkey.
 
