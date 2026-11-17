@@ -55,7 +55,7 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
   })
   drawing += 1
   await $.theme.set({
-    colors: colorsOf(dark, light, { depth: settings.depth, layers: settings.layers, accent: settings.accent }, settings.isHighContrast),
+    colors: colorsOf(dark, light, { depth: settings.depth, layers: settings.layers, accent: settings.accent, isCodeThemed: settings.isCodeThemed }, settings.isHighContrast),
     // Plain is the page's own color, which follows the mode; a still ground takes no glass.
     backdrop: settings.backdrop === 'plain' ? { color: 'surface-0' } : { scene: `${SCENE_ID}-${seed}-${drawing}`, glass: glassOf(settings) },
   })
@@ -511,6 +511,12 @@ export const register: Register = on => {
               <Text>Accent</Text>
             </Box>
             {ACCENTS.map(choice => accent(choice))}
+          </Box>
+          <Box gap={1} alignItems="center">
+            <Box width={12}>
+              <Text>Code</Text>
+            </Box>
+            {toggle('code-theme', "Use the scheme's code theme", settings.isCodeThemed, now => ({ ...now, isCodeThemed: !now.isCodeThemed }))}
           </Box>
           <Box gap={1} alignItems="center">
             <Box width={12}>
