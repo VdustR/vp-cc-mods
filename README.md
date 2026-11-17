@@ -14,7 +14,6 @@ Mods change how Claude Code itself looks and behaves: they draw above the prompt
 
 | Plugin | Value | Docs |
 | :- | :- | :- |
-| `vp-cc-recap` | After a break, see the one next step and start it with one keypress. The recap appears above the prompt on demand or after you have been idle, in the language you write in. | [README](plugins/vp-cc-recap/README.md) |
 | `vp-cc-theme-hammerhead` | A calmer place for long sessions in the desktop app, in your terminal's colors: a color scheme for dark mode and one for light, picked or pasted or described in words, and a hammerhead silhouette cruising a slow sea behind the chat. | [README](plugins/vp-cc-theme-hammerhead/README.md) |
 
 ## Install
@@ -27,7 +26,7 @@ Mods need Claude Code v2.1.287 or later. The Desktop app's bundled engine 2.1.28
    ```
 2. Install a plugin:
    ```text
-   /plugin install vp-cc-recap@vp-cc-mods
+   /plugin install vp-cc-theme-hammerhead@vp-cc-mods
    ```
 3. Check that it loaded: run `/plugin` and open the **Installed** tab.
 
@@ -39,7 +38,7 @@ The local clone is installed as a local-path marketplace, so its plugins load in
 
 ```text
 /plugin marketplace add ~/repo/VdustR/vp-cc-mods
-/plugin install vp-cc-recap@vp-cc-mods
+/plugin install vp-cc-theme-hammerhead@vp-cc-mods
 ```
 
 Work happens on a branch in a separate worktree. Before a pull request, run the automated checks (`node scripts/check.mjs`, also run by CI) and try the change in the terminal (`claude --plugin-dir`) and in the Desktop app. [AGENTS.md](AGENTS.md) describes the full development flow, the naming rules and the release steps.

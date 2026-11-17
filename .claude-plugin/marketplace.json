@@ -8,12 +8,6 @@
   },
   "plugins": [
     {
-      "name": "vp-cc-recap",
-      "source": "./plugins/vp-cc-recap",
-      "description": "An ADHD-friendly session recap above the prompt, on demand and after you have been idle.",
-      "keywords": ["mod", "recap", "adhd", "focus"]
-    },
-    {
       "name": "vp-cc-theme-hammerhead",
       "source": "./plugins/vp-cc-theme-hammerhead",
       "description": "A calm desktop theme from any terminal color scheme: one for dark mode and one for light, with a hammerhead silhouette cruising a slow sea behind the chat.",
