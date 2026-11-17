@@ -8,6 +8,7 @@
 //
 // The water is drawn as ribbons: bands between two sine curves, each with its own wavelength, height, speed and
 // direction, each also rising and falling on its own period, so their overlaps keep changing.
+// A ribbon's crest line fades in and out along its length, so it reads as light on water and not as a contour.
 //
 // No script, no filter, no blend mode: an animated SVG image repaints every frame, and those cost the most.
 // The surface tells a scene nothing about light or dark, so the SVG carries both palettes, each worked out from
@@ -246,11 +247,13 @@ export function buildScene(seed: number, look: SceneLook): string {
     `<g class="mover ${cls}" style="offset-path:path('${loop(path, dx, dy)}');animation-duration:${seconds}s;animation-delay:-${head}s;--rest:${rest}%">${outline}</g>`
   const count = look.waves
   const ribbons = Array.from({ length: count }, (_, i) => ribbon(rand, i, count, look.waveSpeed)).join('\n')
-  const specks = Array.from({ length: look.glints }, () => {
+  const dots = Array.from({ length: look.glints }, () => {
     const r = (1 + rand() * 1.6).toFixed(1)
 
     return `<circle class="speck" cx="${Math.round(rand() * 1600)}" cy="${Math.round(rand() * 1000)}" r="${r}" style="animation-delay:-${(rand() * 11).toFixed(1)}s"/>`
-  }).join('')
+  })
+  // The glints drift a little with the water, half one way and half the other, so they are not pinned in place.
+  const specks = `<g class="drift">${dots.filter((_, at) => at % 2 === 0).join('')}</g><g class="drift back">${dots.filter((_, at) => at % 2 === 1).join('')}</g>`
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
 <style>
@@ -271,19 +274,22 @@ svg {
 .shadow { fill: var(--shadow); opacity: var(--shadow-o); }
 
 .band { fill: url(#ribbon); }
-.crest { fill: none; stroke: var(--light); stroke-width: 1.8; stroke-opacity: var(--crest-o); }
+.crest { fill: none; stroke: url(#crest); stroke-width: 1.6; stroke-linecap: round; }
 .flow { animation: linear infinite; }
 .flow.left { animation-name: flow-left; }
 .flow.right { animation-name: flow-right; transform: translateX(calc(var(--wave) * -1)); }
 .rise { animation: rise ease-in-out infinite alternate; }
 
 .speck { fill: var(--speck); opacity: 0; animation: twinkle 11s ease-in-out infinite; }
+.drift { animation: drift 46s ease-in-out infinite alternate; }
+.drift.back { animation-direction: alternate-reverse; animation-duration: 58s; }
 
 @keyframes swim { from { offset-distance: 0%; } to { offset-distance: 100%; } }
 @keyframes beat { from { transform: rotate(calc(var(--swing) * -1)); } to { transform: rotate(var(--swing)); } }
 @keyframes flow-left { from { transform: translateX(0); } to { transform: translateX(calc(var(--wave) * -1)); } }
 @keyframes flow-right { from { transform: translateX(calc(var(--wave) * -1)); } to { transform: translateX(0); } }
 @keyframes rise { from { transform: translateY(calc(var(--lift) * -1)); } to { transform: translateY(var(--lift)); } }
+@keyframes drift { from { transform: translate(-22px, -8px); } to { transform: translate(22px, 8px); } }
 @keyframes twinkle { 0%, 100% { opacity: 0; } 50% { opacity: var(--speck-o); } }
 
 ${look.isMoving ? '' : '* { animation: none !important; }\n.speck { opacity: calc(var(--speck-o) * .5); }'}
@@ -302,6 +308,11 @@ ${look.isMoving ? '' : '* { animation: none !important; }\n.speck { opacity: cal
     <stop offset="0" style="stop-color: var(--glow); stop-opacity: .4"/>
     <stop offset="1" style="stop-color: var(--glow); stop-opacity: 0"/>
   </radialGradient>
+  <linearGradient id="crest" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="380" y2="0" spreadMethod="reflect">
+    <stop offset="0" style="stop-color: var(--light); stop-opacity: var(--crest-o)"/>
+    <stop offset=".55" style="stop-color: var(--light); stop-opacity: calc(var(--crest-o) * .55)"/>
+    <stop offset="1" style="stop-color: var(--light); stop-opacity: calc(var(--crest-o) * .12)"/>
+  </linearGradient>
   <linearGradient id="ribbon" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" style="stop-color: var(--light); stop-opacity: var(--band-o)"/>
     <stop offset=".6" style="stop-color: var(--light); stop-opacity: calc(var(--band-o) * .25)"/>
