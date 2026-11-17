@@ -78,7 +78,9 @@ function loop(points: readonly Point[], dx = 0, dy = 0): string {
 
 /**
  * A random closed route around the middle of the window. Its points go round in angle order, so the loop never
- * crosses itself; it reaches the window's edges and a little past them, so the shark leaves and comes back.
+ * crosses itself. The loop stays inside the middle of the drawing, where the conversation is: the app's sidebar
+ * and side pane cover the drawing's left and right, and a shark that swam under them was out of sight for most of
+ * a lap.
  */
 function route(rand: () => number): Point[] {
   const count = 7 + Math.floor(rand() * 3)
@@ -86,8 +88,9 @@ function route(rand: () => number): Point[] {
   const points: Point[] = []
   for (let i = 0; i < count; i++) {
     const a = start + ((i + (rand() - 0.5) * 0.5) / count) * Math.PI * 2
-    const r = 300 + rand() * 260
-    points.push([Math.round(800 + Math.cos(a) * r * 1.3), Math.round(500 + Math.sin(a) * r * 0.78)])
+    const r = 260 + rand() * 300
+    // At its widest the loop spans the middle three fifths of the drawing's width and four fifths of its height.
+    points.push([Math.round(800 + Math.cos(a) * r * 0.85), Math.round(500 + Math.sin(a) * r * 0.72)])
   }
 
   return rand() < 0.5 ? points.reverse() : points
