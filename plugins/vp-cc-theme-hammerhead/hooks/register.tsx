@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { Accent, Backdrop, LookSettings, Mode, Panel, Scheme, Section } from '../types'
-import { colorsOf, modeOf, seaOf } from './look'
+import { colorsOf, easingOf, modeOf, seaOf } from './look'
 import { PRESETS } from './presets'
 import { buildScene } from './scene'
 import { parseScheme } from './scheme'
@@ -33,6 +33,19 @@ let scene = ''
 // leaves the old sea behind it; without the seed a reload starts the count again and meets names already drawn.
 let drawing = 0
 
+// What the count last stood for: the SVG and its glass. A change that leaves both alone (an accent, a button
+// pressed at its limit) keeps the scene's name, so the sea is not drawn again and the shark swims on. A new name
+// starts every animation over, which puts the shark back where its route begins.
+let drawnAs = ''
+
+// The settings the look on screen was drawn from. Every session shares the store, so another session may have
+// changed them since.
+let shown = ''
+
+// Changes wait for one another: each reads the store, writes it and sets the theme, and two at once would lose a
+// press or leave the older look on screen.
+let queue: Promise<void> = Promise.resolve()
+
 // Whether this load has set the theme for the conversation on screen. A /clear ends the conversation without a
 // new `session.start`, and the theme goes with it, so the next prompt sets it again.
 let isApplied = false
@@ -57,12 +70,19 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
     waveSpeed: settings.waveSpeed / 100,
     isMoving: settings.backdrop === 'moving',
   })
-  drawing += 1
+  const isPlain = settings.backdrop === 'plain'
+  const glass = glassOf(settings)
+  const drawAs = isPlain ? 'plain' : JSON.stringify([scene, glass])
+  if (drawAs !== drawnAs) {
+    drawing += 1
+    drawnAs = drawAs
+  }
   await $.theme.set({
     colors: colorsOf(dark, light, { depth: settings.depth, layers: settings.layers, accent: settings.accent, isCodeThemed: settings.isCodeThemed }, settings.isHighContrast),
     // Plain is the page's own color, which follows the mode; a still ground takes no glass.
-    backdrop: settings.backdrop === 'plain' ? { color: 'surface-0' } : { scene: `${SCENE_ID}-${seed}-${drawing}`, glass: glassOf(settings) },
+    backdrop: isPlain ? { color: 'surface-0' } : { scene: `${SCENE_ID}-${seed}-${drawing}`, glass },
   })
+  shown = JSON.stringify(settings)
 }
 
 /** The settings as the store has them now, copied to this session's state for the pane to read. */
@@ -90,17 +110,41 @@ async function apply($: EngineInterface): Promise<void> {
  * Changes the settings and draws the result. The store is read again right before the write, since every session
  * shares it and a read followed by a write is not atomic.
  */
-async function change($: EngineInterface, edit: (settings: LookSettings) => LookSettings, notice: string): Promise<void> {
-  const next = readSettings(edit(readSettings(await $.store.get(STORE_KEY))))
-  await $.store.set(STORE_KEY, next)
+async function alter($: EngineInterface, edit: (settings: LookSettings) => LookSettings, notice: string, isRedrawn: boolean): Promise<void> {
+  const stored = readSettings(await $.store.get(STORE_KEY))
+  const next = readSettings(edit(stored))
+  const isSame = JSON.stringify(next) === JSON.stringify(stored)
+  if (!isSame) await $.store.set(STORE_KEY, next)
   await update($, settingsAtom, () => next)
   await update($, panelAtom, panel => ({ ...panel, notice, isBusy: false }))
+  // A press that changes nothing, such as a step past its limit, draws nothing.
+  if (isSame && !isRedrawn && isApplied && shown === JSON.stringify(next)) return
   try {
     await draw($, next)
     isApplied = true
   } catch {
     await update($, panelAtom, panel => ({ ...panel, notice: 'Saved, but the look could not be drawn here.' }))
   }
+}
+
+/** Changes the settings, after any change already under way. `isRedrawn` draws even when the settings stay as they were. */
+function change($: EngineInterface, edit: (settings: LookSettings) => LookSettings, notice: string, isRedrawn = false): Promise<void> {
+  queue = queue.then(() => alter($, edit, notice, isRedrawn)).catch(() => {})
+
+  return queue
+}
+
+/**
+ * Before a prompt: sets the theme when this conversation has none, or when another session changed the settings
+ * since this one drew them. Never throws.
+ */
+async function refresh($: EngineInterface): Promise<void> {
+  try {
+    if (isApplied && JSON.stringify(readSettings(await $.store.get(STORE_KEY))) === shown) return
+  } catch {
+    return
+  }
+  await apply($)
 }
 
 async function say($: EngineInterface, notice: string): Promise<void> {
@@ -127,7 +171,14 @@ async function keep($: EngineInterface, scheme: Scheme, slot: Mode): Promise<voi
   const mode = modeOf(scheme)
   const where = mode === slot ? `${mode} mode` : `${mode} mode, since its background is ${mode}`
   await update($, panelAtom, panel => ({ ...panel, slot: mode }))
-  await change($, settings => withCustom(settings, scheme), `Saved "${scheme.name}" for ${where}.`)
+  const settings = await read($, settingsAtom)
+  // The app refuses a whole theme over one piece of text it cannot read, so a scheme is eased until it passes.
+  const { left, isFirmer, isPainted } = easingOf(scheme, { depth: settings.depth, layers: settings.layers, accent: settings.accent, isCodeThemed: settings.isCodeThemed })
+  const eased = !isPainted
+    ? ' The app will not paint it: its background is neither dark enough nor light enough, so the app keeps its own colors while it is chosen.'
+    : (isFirmer ? ' Its text is drawn brighter or darker than the scheme asks, so the app can paint it.' : '') +
+    (left.length === 0 ? '' : ` The app could not paint its ${left.join(', ')}, so ${left.length === 1 ? 'that color is' : 'those colors are'} the app's own.`)
+  await change($, now => withCustom(now, scheme), `Saved "${scheme.name}" for ${where}.${eased}`)
 }
 
 /** Takes what the person typed in the pane: a pasted scheme, or words for the model to make one from. */
@@ -212,9 +263,7 @@ export const register: Register = on => {
 
   // Never waits and never fails: the prompt goes on at once, whatever becomes of the theme.
   on('prompt.submit', ($, e, next) => {
-    if (!isApplied) {
-      void apply($).catch(() => {})
-    }
+    void refresh($)
 
     return next(e)
   })
@@ -420,7 +469,7 @@ export const register: Register = on => {
                   onPress={() => {
                     seed = Math.floor(Math.random() * 2147483646)
 
-                    return change($, now => now, 'The shark took a new route.')
+                    return change($, now => now, 'The shark took a new route.', true)
                   }}
                 />,
               ])}
