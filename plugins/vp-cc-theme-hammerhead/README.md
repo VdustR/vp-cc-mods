@@ -14,7 +14,7 @@ The stock look is neutral by design. This theme gives long sessions a warmer, qu
 ## What it looks like
 
 - **The app:** the page takes the scheme's background, and cards, panels and menus step away from it by a small, fixed amount. Buttons and links take the scheme's accent; red, green, yellow and purple color errors, successes, warnings and the rest.
-- **The sea:** shades of the scheme's background, never a hue it does not have. The ribbons are always the lighter of the two, as light on water is. On a dark scheme the water is the background and the ribbons are a lighter shade of it. On a light scheme, which has no room above its background, the ribbons are the background and the water is a darker shade of it. **Depth** sets how far apart they are.
+- **The sea:** shades of the scheme's background, never a hue it does not have. The ribbons are always the lighter of the two, as light on water is. On a dark scheme the water is the background and the ribbons are a lighter shade of it. On a light scheme, which has no room above its background, the ribbons are the background and the water is a darker shade of it. **Depth** sets how far apart they are. Each ribbon's crest line fades in and out along its length, and the glints drift a little with the water.
 - **The shark:** a pure silhouette seen from above, a shade further from the water: paler on a dark scheme, darker on a light one. Its head is a great hammerhead's: a short, broad hammer set straight on the body at its full width, its front edge bowed gently forward, each end a flat block. A wave travels down its body to the tail in a slow S, its head sweeps the other way, and the two lobes of its tail, one long and one short, open into a fork as the tail sweeps and close as it turns.
 
 ## Use

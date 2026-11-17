@@ -117,7 +117,8 @@ export function seaOf(scheme: Scheme, depth: number, sharkTone = 4): Sea {
     shark,
     sharkOpacity: 1,
     shadow: contrast(dim, water) >= 1.3 ? dim : '#000000',
-    shadowOpacity: isDark ? 0.5 : 0.35,
+    // A deeper sea throws a darker shadow; at the default depth it is what it was.
+    shadowOpacity: +Math.min(0.8, (isDark ? 0.5 : 0.35) * (0.4 + depth * 0.2)).toFixed(2),
     speck: hasGlint ? glint : ribbon,
     speckOpacity: hasGlint ? 0.5 : 0.9,
   }
