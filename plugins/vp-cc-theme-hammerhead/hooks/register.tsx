@@ -24,8 +24,9 @@ let seed = Math.floor(Math.random() * 2147483646)
 // The sea as last drawn: built when the look is set, not in the render hook, which only hands it over.
 let scene = ''
 
-// A surface draws a backdrop again only when the look names another scene, so each drawing gets a name of its own:
-// the scene id and a count. Without it a new scheme recolors the app and leaves the old sea behind it.
+// A surface draws a backdrop again only when the look names a scene it has not drawn, so each drawing gets a name
+// of its own: the scene id, this load's seed and a count. Without the count a new scheme recolors the app and
+// leaves the old sea behind it; without the seed a reload starts the count again and meets names already drawn.
 let drawing = 0
 
 // Whether this load has set the theme for the conversation on screen. A /clear ends the conversation without a
@@ -42,8 +43,8 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
   const dark = schemeOf(settings, 'dark')
   const light = schemeOf(settings, 'light')
   scene = buildScene(seed, {
-    dark: seaOf(dark),
-    light: seaOf(light),
+    dark: seaOf(dark, settings.depth),
+    light: seaOf(light, settings.depth),
     size: settings.size / 100,
     speed: settings.speed / 100,
     isSharkShown: settings.isSharkShown,
@@ -53,9 +54,9 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
   })
   drawing += 1
   await $.theme.set({
-    colors: colorsOf(dark, light, settings.isHighContrast),
+    colors: colorsOf(dark, light, settings.depth, settings.isHighContrast),
     // Plain is the page's own color, which follows the mode; a still ground takes no glass.
-    backdrop: settings.backdrop === 'plain' ? { color: 'surface-0' } : { scene: `${SCENE_ID}-${drawing}`, glass: GLASS[settings.glass] },
+    backdrop: settings.backdrop === 'plain' ? { color: 'surface-0' } : { scene: `${SCENE_ID}-${seed}-${drawing}`, glass: GLASS[settings.glass] },
   })
 }
 
@@ -341,6 +342,24 @@ export const register: Register = on => {
             {glass('clear', 'Clear')}
             {glass('standard', 'Standard')}
             {glass('frosted', 'Frosted')}
+          </Box>
+          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
+            <Box width={12}>
+              <Text>Depth</Text>
+            </Box>
+            <Button
+              key="hammerhead:depth-down"
+              label="Shallower"
+              onPress={() => change($, now => ({ ...now, depth: Math.max(1, now.depth - 1) }), '')}
+            />
+            <Box width={6} justifyContent="center">
+              <Text tabular>{String(settings.depth)}</Text>
+            </Box>
+            <Button
+              key="hammerhead:depth-up"
+              label="Deeper"
+              onPress={() => change($, now => ({ ...now, depth: Math.min(10, now.depth + 1) }), '')}
+            />
           </Box>
           <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
             <Box width={12}>

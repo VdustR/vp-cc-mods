@@ -14,8 +14,8 @@ The stock look is neutral by design. This theme gives long sessions a warmer, qu
 ## What it looks like
 
 - **The app:** the page takes the scheme's background, and cards, panels and menus step away from it by a small, fixed amount. Buttons and links take the scheme's accent; red, green, yellow and purple color errors, successes, warnings and the rest.
-- **The sea:** drawn only in the scheme's own colors. The water is the background. The ribbons that cross it are the foreground, so they are light on a dark scheme and dark on a light one, at an opacity worked out to stand out equally on both.
-- **The shark:** a pure silhouette in the color of the text, seen from above. A wave travels down its body to the tail in a slow S, and its head sweeps the other way, as a hammerhead's does.
+- **The sea:** shades of the scheme's background, never a hue it does not have. The ribbons are always the lighter of the two, as light on water is. On a dark scheme the water is the background and the ribbons are a lighter shade of it. On a light scheme, which has no room above its background, the ribbons are the background and the water is a darker shade of it. **Depth** sets how far apart they are.
+- **The shark:** a pure silhouette seen from above, a shade further from the water: paler on a dark scheme, darker on a light one. A wave travels down its body to the tail in a slow S, and its head sweeps the other way, as a hammerhead's does.
 
 ## Use
 
@@ -41,6 +41,7 @@ Every change is drawn at once and kept for every session on the machine.
 | **Show as JSON** | Shows the chosen scheme in the terminal format, to copy, edit and paste back. |
 | **Backdrop** | **Moving** is the sea in motion, **Still** the sea at rest, **Plain** the scheme's background alone, with no sea, shark or glass. |
 | **Glass** | How strongly the app frosts the sea behind the conversation: off, clear, standard or frosted. Off shows the sea at full strength. |
+| **Depth** | How far the water and its ribbons are apart, 1 (barely there) to 10 (deep). The default is 3. |
 | **Waves** | Three, five or seven ribbons, and whether specks of light twinkle on the water. |
 | **Shark** | Shows or hides the shark. **New route** sends it another way. |
 | **Shark size** and **Swim speed** | 50% to 200% of its own, in steps of 25. |
@@ -92,10 +93,11 @@ The theme draws in the Claude desktop and mobile apps. The terminal and the edit
 - At `session.start` the plugin reads its settings from `$.store`, works out the look and calls `$.theme.set` with the colors for both modes and a backdrop scene. After `/clear`, which raises no `session.start`, the next prompt sets the theme again.
 - The app's colors come from the design system's own builder, `make-colors.js`, which ships inside Claude Code's `plugin-authoring` skill and is copied here unchanged. The plugin gives it a few colors a mode and it names the hundred the app needs.
 - The Desktop app ignores a whole theme when one piece of text falls under its contrast floor. A scheme that would fail is eased until it passes: flatter surfaces first, then the one role color at fault is left to the app's own.
-- Text is held to 7:1 on the worst ground it is read on: the page, a card, the water, and the water under a ribbon.
+- The sea's shades are the background moved lighter or darker in OKLCH, with its hue and chroma kept, until they reach a set contrast: 1.1 at depth 1 to 2.0 at depth 10 for the ribbons, 2.4 for the shark. Mixing in the foreground instead grays a warm background, since a scheme's text is rarely its background's hue.
+- Text is held to 7:1 on the worst ground it is read on: the page, a card, the water, the water under a ribbon, and a filled control on a menu.
 - A `ui.render` hook on `Backdrop` answers the scene with one SVG. The SVG holds no script; it animates with its own CSS. The surface tells a scene nothing about light or dark, so the SVG carries both modes' palettes and switches with a `prefers-color-scheme` media query.
 - The shark follows a CSS motion path (`offset-path` with `offset-rotate: auto`), so it turns to face where it goes. Its body is a chain of hinged segments that swing on one slow beat, each a little later than the one before.
-- The scene is built when the look is set, from a random seed kept for the load, so a redraw never moves the shark. A surface draws a backdrop again only for a scene name it has not drawn, so each look names its scene with a count.
+- The scene is built when the look is set, from a random seed kept for the load, so a redraw never moves the shark. A surface draws a backdrop again only for a scene name it has not drawn, so each look names its scene with the load's seed and a count.
 - When you describe a scheme in words, those words go to Claude in one model call that sees nothing of the conversation. Nothing else is sent anywhere.
 
 ## Limits

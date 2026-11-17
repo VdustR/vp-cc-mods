@@ -44,6 +44,8 @@ export type LookSettings = {
   speed: number
   isSharkShown: boolean
   backdrop: Backdrop
+  /** How far the water sits below the scheme's background, 1 (barely) to 10 (deep). */
+  depth: number
   /** How many ribbons cross the water: 3, 5 or 7. */
   waves: number
   /** Whether specks of light twinkle on the water. */

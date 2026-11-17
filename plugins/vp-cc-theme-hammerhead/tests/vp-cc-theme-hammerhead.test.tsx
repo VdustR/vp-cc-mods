@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { contrast, mix } from '../hooks/color'
-import { isPainted, modeOf, seaOf } from '../hooks/look'
+import { depthContrast, isPainted, modeOf, seaOf } from '../hooks/look'
 import { DEFAULTS, PRESETS } from '../hooks/presets'
 import { parseScheme } from '../hooks/scheme'
 
@@ -140,17 +140,20 @@ test('every shipped scheme is painted by the Desktop app and keeps its waves, it
 
   for (const scheme of PRESETS) {
     const isDark = modeOf(scheme) === 'dark'
-    // The Desktop app ignores a whole theme when one piece of text is under its floor.
-    expect(isPainted(isDark ? scheme : darks[0]!, isDark ? lights[0]! : scheme)).toBe(true)
+    // The shallowest, the default and the deepest sea: each depth moves the ground the text is read on.
+    for (const depth of [1, 3, 10]) {
+      // The Desktop app ignores a whole theme when one piece of text is under its floor.
+      expect(isPainted(isDark ? scheme : darks[0]!, isDark ? lights[0]! : scheme, depth)).toBe(true)
 
-    const sea = seaOf(scheme)
-    const crest = mix(sea.mid, sea.light, sea.crestOpacity)
-    const band = mix(sea.mid, sea.light, sea.bandOpacity)
-    const shark = mix(sea.mid, sea.shark, sea.sharkOpacity)
-    // The same contrast on every scheme, pale or black: that is what keeps the waves visible.
-    expect(contrast(crest, sea.mid)).toBeGreaterThan(1.5)
-    expect(contrast(band, sea.mid)).toBeGreaterThan(1.2)
-    expect(contrast(shark, sea.mid)).toBeGreaterThan(2)
+      const sea = seaOf(scheme, depth)
+      const crest = mix(sea.mid, sea.light, sea.crestOpacity)
+      const shark = mix(sea.mid, sea.shark, sea.sharkOpacity)
+      // The same contrast on every scheme, pale or black: that is what keeps the waves visible.
+      expect(contrast(crest, sea.mid)).toBeGreaterThan(1 + (depthContrast(depth) - 1) * 0.85)
+      expect(contrast(shark, sea.mid)).toBeGreaterThan(2)
+      // The ribbons are the lighter of the two, in either mode.
+      expect(contrast(sea.light, '#000000')).toBeGreaterThan(contrast(sea.mid, '#000000'))
+    }
   }
 })
 
@@ -200,6 +203,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
     await ui.press({ key: 'hammerhead:glass-off' })
     expect(looks.at(-1)?.backdrop?.glass).toBe(false)
+    await ui.press({ key: 'hammerhead:depth-up' })
+    expect(store.get('settings')).toMatchObject({ depth: 4 })
     await ui.press({ key: 'hammerhead:waves-up' })
     await ui.press({ key: 'hammerhead:glints' })
     await ui.press({ key: 'hammerhead:contrast' })
