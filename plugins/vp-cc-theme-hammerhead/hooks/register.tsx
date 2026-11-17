@@ -10,7 +10,8 @@ import { ACCENTS, BLUR_MOST, BLUR_STEP, DEFAULT_LOOK, GLINTS, LEAST, MOST, STEP,
 
 const PLUGIN = 'vp-cc-theme-hammerhead'
 const SCENE_ID = 'hammerhead-sea'
-const PANE = 'hammerhead-theme'
+// Named after the plugin, so a dev copy beside the installed plugin opens a pane of its own.
+const PANE = 'vp-cc-theme-hammerhead-settings'
 const PANE_TITLE = 'Hammerhead theme'
 /** The one record in the plugin's store, which every session on the machine shares. */
 const STORE_KEY = 'settings'

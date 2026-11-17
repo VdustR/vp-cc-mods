@@ -42,8 +42,8 @@ The pane is in sections: **Schemes**, **Your own scheme**, **The sea**, **The sh
 | **Your own scheme** | Type a few words (`warm coffee and cream, low contrast`) and press Enter: Claude writes a scheme for the chosen mode. Or paste a scheme as JSON. It is kept in the list, where **Remove** deletes it. To change one of yours, paste it again under the same name. When Claude does not answer with a scheme, **Try again** asks once more. |
 | **Show as JSON** | Shows the chosen scheme in the terminal format, to copy, edit and paste back. |
 | **Backdrop** | **Moving** is the sea in motion, **Still** the sea at rest, **Plain** the scheme's background alone, with no sea, shark or glass. |
-| **Blur** | How far the sea blurs behind the conversation, 0 to 24. |
-| **Veil** | How opaque the app's own panel color lies over the sea, 0% to 80%. A message bubble is a panel: a thick veil makes bubbles solid, a thin one leaves them see-through. With both at 0 the sea is bare. |
+| **Blur** | How far the sea blurs behind the conversation, 0 to 24. Starts at 3. |
+| **Veil** | How opaque the app's own panel color lies over the sea, 0% to 80%. Starts at 70%. A message bubble is a panel: a thick veil makes bubbles solid, a thin one leaves them see-through. With both at 0 the sea is bare. |
 | **Depth** | How far the water and its ribbons are apart, 1 (barely there) to 10 (deep). The default is 3. |
 | **Waves** | Three, five or seven ribbons. |
 | **Wave speed** | How fast the ribbons drift, 50% to 200% of their own pace. |

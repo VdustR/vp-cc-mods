@@ -179,6 +179,7 @@ node scripts/dev-copy.mjs vp-cc-<name> <session-id>
 
 - It copies the plugin to `~/.claude/dev-mods/<session-id>/dev-vp-cc-<name>/` and writes `dev-` before the plugin's name everywhere inside: the manifest, the `PluginState` key, the atoms and the slash command.
 - The session must have mods from that folder turned on. Asking Claude for a mod there (the `plugin-authoring` skill) asks the person once.
+- **A pane id is shared by every plugin in the session.** `$.ui.open` throws `pane "<id>" is held by <plugin>` when another plugin has opened that id (seen on engine 2.1.325), and a `command.run` hook that throws answers nothing. Put the plugin's full name in the id (`vp-cc-<name>-settings`), which the script then renames with the rest.
 - **The copy is a separate plugin.** Its command is `/dev-vp-cc-<name>`, and its pane and its `$.store` are its own. The installed plugin keeps `/vp-cc-<name>`, its own pane and its own settings. Two panes with the same title can be open at once: the one opened with the `/dev-` command belongs to the copy.
 - **It reloads when a turn ends**, not while one runs. Run the script again after an edit, then end the turn; to go on without the person, start a short background command first and continue when its notification arrives. `$.store` and `$.state` survive the reload; module variables do not.
 - **Remove it when the change is merged**: delete the `dev-vp-cc-<name>` folder, or the session keeps running both.

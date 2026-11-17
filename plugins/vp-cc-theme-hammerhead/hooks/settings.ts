@@ -9,8 +9,8 @@ import { isHex } from './color'
 export const DEFAULT_LOOK: LookSettings = {
   dark: DEFAULTS.dark,
   light: DEFAULTS.light,
-  blur: 4,
-  veil: 40,
+  blur: 3,
+  veil: 70,
   size: 100,
   speed: 100,
   isSharkShown: true,
@@ -33,7 +33,7 @@ export const ACCENTS: readonly Accent[] = ['scheme', 'red', 'yellow', 'green', '
 /** The numbers of glints a person can choose, fewest first. */
 export const GLINTS: readonly number[] = [0, 10, 22, 40]
 
-export const BLUR_STEP = 2
+export const BLUR_STEP = 1
 export const BLUR_MOST = 24
 export const VEIL_STEP = 10
 export const VEIL_MOST = 80
@@ -96,7 +96,7 @@ export function readSettings(raw: unknown): LookSettings {
   const stored = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
   const custom = Array.isArray(stored.custom) ? stored.custom.filter(isScheme).slice(-CUSTOM_LIMIT) : []
   // Settings saved before blur and veil were set apart hold one of four glass levels.
-  const old = OLD_GLASS[typeof stored.glass === 'string' ? stored.glass : 'standard'] ?? OLD_GLASS.standard!
+  const old = (typeof stored.glass === 'string' ? OLD_GLASS[stored.glass] : undefined) ?? DEFAULT_LOOK
   const settings: LookSettings = {
     dark: typeof stored.dark === 'string' ? stored.dark : DEFAULTS.dark,
     light: typeof stored.light === 'string' ? stored.light : DEFAULTS.light,
