@@ -1,8 +1,8 @@
 // A calm sea seen from above. One hammerhead, a pure silhouette, cruises a wide loop while slow ribbons of
 // light cross the water over it.
 //
-// The shark is a chain of overlapping segments, each hinged on the one before: body, middle, rear, and a tail in
-// two parts. Every hinge swings on the same slow beat, each a little later and a little wider than the one before
+// The shark is a chain of overlapping segments, each hinged on the one before: body, middle, rear, the stalk of
+// the tail, and the two lobes of its fin. Every hinge swings on the same slow beat, each a little later and a little wider than the one before
 // it, so a wave travels down the body and the tail sweeps a clear S. The head sweeps the other way, as a
 // hammerhead's does. The route is a CSS motion path with `offset-rotate: auto`, so the shark faces where it goes.
 //
@@ -102,49 +102,71 @@ function length(points: readonly Point[]): number {
   return total
 }
 
-/** A path drawn on the left side, and the same path mirrored onto the right. */
-function both(draw: (side: number) => string): string {
-  return `${draw(-1)} ${draw(1)}`
-}
+// The hammerhead, nose toward +x, about 480 long. Each part overlaps the next, so a hinge never opens a gap.
+// A part is one path or several: a fin is its own path beside the trunk, never a subpath of it. The two fins of a
+// pair are mirror images, so they wind opposite ways, and inside one path the trunk would cut a slit into one.
+type Part = readonly string[]
 
-// The hammerhead, nose toward +x, about 445 long. Each part overlaps the next, so a hinge never opens a gap.
-/** The cephalofoil: a thin blade across the front, wider than the fins behind it, its tips swept back, on a slim neck. */
-const HEAD =
-  'M150 0 C152 -10 152 -40 146 -62 C142 -76 134 -87 126 -87 C121 -87 120 -81 122 -74 C127 -56 126 -36 117 -23 C109 -14 99 -11 88 -10 L88 10 C99 11 109 14 117 23 C126 36 127 56 122 74 C120 81 121 87 126 87 C134 87 142 76 146 62 C152 40 152 10 150 0 Z'
-/** Neck to the widest part of the body, with the swept pectorals. */
-const BODY =
-  'M98 -10 C72 -17 48 -25 24 -27.5 C8 -29 -10 -28 -26 -26 L-26 26 C-10 28 8 29 24 27.5 C48 25 72 17 98 10 Z ' +
-  both(k => `M40 ${k * 23} C28 ${k * 31} 8 ${k * 46} -26 ${k * 64} C-33 ${k * 68} -40 ${k * 66} -38 ${k * 60} C-30 ${k * 46} -18 ${k * 34} -6 ${k * 25} Z`)
-const MIDDLE = 'M-6 -27.5 C-34 -26 -62 -21 -88 -15.5 L-88 15.5 C-62 21 -34 26 -6 27.5 Z'
+/**
+ * The cephalofoil, as a great hammerhead's reads from above: a short, broad hammer on a thick neck. Its front edge
+ * bows gently forward, and each end is a flat block that stands a little proud of the wing, both forward and back.
+ */
+const HEAD: Part = [
+  'M152.5 0 C152.5 -8 151.8 -18 150.3 -27 C149.4 -33 148.6 -38 148.8 -43 C149.2 -47 150.5 -50 153 -53 C156 -56 157.5 -63 154 -66.5 C151.5 -69.5 146 -70.5 138 -70.5 C130 -70.5 122 -70.5 116 -70 C111 -69.5 107.5 -65 109 -60 C110 -54 121 -50 123 -44 C124 -37 113 -31 104 -27.5 C98 -24.5 93 -22.5 86 -21.5 L86 21.5 C93 22.5 98 24.5 104 27.5 C113 31 124 37 123 44 C121 50 110 54 109 60 C107.5 65 111 69.5 116 70 C122 70.5 130 70.5 138 70.5 C146 70.5 151.5 69.5 154 66.5 C157.5 63 156 56 153 53 C150.5 50 149.2 47 148.8 43 C148.6 38 149.4 33 150.3 27 C151.8 18 152.5 8 152.5 0 Z',
+]
+/** Neck to the widest part of the body, with the pectorals: broad at the base, long, pointed and swept back. */
+const BODY: Part = [
+  'M94 -21 C72 -25 48 -28.5 24 -29.5 C8 -30.5 -10 -29.5 -26 -27 L-26 27 C-10 29.5 8 30.5 24 29.5 C48 28.5 72 25 94 21 Z',
+  'M60 -25 C46 -37 18 -58 -30 -80 C-28 -64 -14 -43 12 -27 Z',
+  'M60 25 C46 37 18 58 -30 80 C-28 64 -14 43 12 27 Z',
+]
+const MIDDLE: Part = ['M-6 -28.5 C-34 -27 -62 -22 -88 -16 L-88 16 C-62 22 -34 27 -6 28.5 Z']
 /** The rear of the body, narrowing to the stalk, with the small pelvic fins. */
-const REAR =
-  'M-70 -19 C-100 -13.5 -128 -8 -154 -4.5 L-154 4.5 C-128 8 -100 13.5 -70 19 Z ' +
-  both(k => `M-92 ${k * 13} C-102 ${k * 21} -114 ${k * 29} -127 ${k * 32} C-125 ${k * 24} -117 ${k * 16} -106 ${k * 10} Z`)
-/** The tail from above: a slim stalk, then the caudal fin as a narrow leaf; in two parts, so its tip whips. */
-const TAIL_A = 'M-142 -5.5 C-172 -5 -202 -4 -232 -2.6 L-232 2.6 C-202 4 -172 5 -142 5.5 Z'
-const TAIL_B = 'M-222 -3.2 C-236 -4.4 -252 -6.4 -266 -6.2 C-282 -5.6 -296 -2.6 -306 0 C-296 2.6 -282 5.6 -266 6.2 C-252 6.4 -236 4.4 -222 3.2 Z'
+const REAR: Part = [
+  'M-70 -19.5 C-100 -14 -128 -8.5 -154 -5 L-154 5 C-128 8.5 -100 14 -70 19.5 Z',
+  'M-88 -14 C-100 -23 -114 -32 -132 -36 C-129 -26 -119 -16 -104 -10 Z',
+  'M-88 14 C-100 23 -114 32 -132 36 C-129 26 -119 16 -104 10 Z',
+]
+/** The stalk of the tail. */
+const STALK: Part = ['M-142 -6 C-172 -5.4 -202 -4.2 -232 -2.8 L-232 2.8 C-202 4.2 -172 5.4 -142 6 Z']
+// The caudal fin is a tall blade with a long upper lobe and a short lower one. From straight above the two lie on
+// one line. As the tail sweeps, the water leans the blade over, and a leaning blade shows its upper lobe to one
+// side and its lower lobe to the other. So each lobe is its own hinge on the end of the stalk, and they swing
+// opposite ways on the same beat: the fork opens as the tail sweeps and closes as the blade stands up again.
+const UPPER_LOBE: Part = ['M-220 -3.2 C-244 -5.2 -276 -7.6 -300 -6.4 C-316 -5 -330 -2 -340 0 C-330 2 -316 4.4 -300 5 C-276 5.4 -244 4.4 -220 3.2 Z']
+const LOWER_LOBE: Part = ['M-220 -3 C-234 -4.6 -250 -6 -262 -5.2 C-272 -4 -280 -1.6 -286 0 C-280 1.6 -272 3.6 -262 4.4 C-250 4.8 -234 4 -220 3 Z']
 
 /** The hinges, from the body back: where each turns, how far, and how late in the beat. */
 const HINGES = [
   { part: MIDDLE, x: -16, swing: 4.5, lag: 0.14 },
   { part: REAR, x: -80, swing: 6.5, lag: 0.28 },
-  { part: TAIL_A, x: -148, swing: 9, lag: 0.42 },
-  { part: TAIL_B, x: -226, swing: 12, lag: 0.56 },
+  { part: STALK, x: -148, swing: 9, lag: 0.42 },
 ] as const
+
+/** The two lobes of the caudal fin, each hinged where the stalk ends. */
+const LOBES = [
+  { part: UPPER_LOBE, x: -224, swing: 9, lag: 0.68 },
+  { part: LOWER_LOBE, x: -224, swing: -7, lag: 0.68 },
+] as const
+
+function paths(part: Part): string {
+  return part.map(d => `<path d="${d}"/>`).join('')
+}
+
+/** One hinge: a group that swings about a point on the body's axis, a share of a beat behind the head. */
+function hinge(x: number, swing: number, lag: number, beat: number, inside: string): string {
+  return `<g class="hinge" style="transform-origin:${x}px 0;--swing:${swing}deg;animation-duration:${beat / 2}s;animation-delay:${(-beat * (1 - lag)).toFixed(2)}s">${inside}</g>`
+}
 
 /** The shark's outline, every hinge beating; `beat` is one full sweep, there and back, in seconds. */
 function shark(beat: number): string {
-  const half = beat / 2
-  let chain = ''
-  for (const hinge of [...HINGES].reverse()) {
-    chain = `<g class="hinge" style="transform-origin:${hinge.x}px 0;--swing:${hinge.swing}deg;animation-duration:${half}s;animation-delay:${(-beat * (1 - hinge.lag)).toFixed(2)}s"><path d="${hinge.part}"/>${chain}</g>`
+  let chain = LOBES.map(lobe => hinge(lobe.x, lobe.swing, lobe.lag, beat, paths(lobe.part))).join('')
+  for (const part of [...HINGES].reverse()) {
+    chain = hinge(part.x, part.swing, part.lag, beat, paths(part.part) + chain)
   }
 
   // The whole body yaws a little against the tail, and the head sweeps against the body.
-  return `<g class="hinge" style="transform-origin:20px 0;--swing:-2deg;animation-duration:${half}s;animation-delay:${(-beat * 0.92).toFixed(2)}s">
-  ${chain}<path d="${BODY}"/>
-  <g class="hinge" style="transform-origin:66px 0;--swing:-3.5deg;animation-duration:${half}s;animation-delay:${(-beat * 0.84).toFixed(2)}s"><path d="${HEAD}"/></g>
-</g>`
+  return hinge(20, -2, 0.08, beat, `${chain}${paths(BODY)}${hinge(66, -3.5, 0.16, beat, paths(HEAD))}`)
 }
 
 /** A sine curve as a smooth path: sampled a tenth of a wave apart and joined through the midpoints. */
