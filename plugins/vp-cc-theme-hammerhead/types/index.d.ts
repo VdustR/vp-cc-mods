@@ -83,6 +83,8 @@ export type Panel = {
   notice: string
   /** True while the model writes a scheme. */
   isBusy: boolean
+  /** A scheme of the person's own that was just removed, which "Undo" puts back. Gone after the next change. */
+  removed?: Scheme
   isJsonShown: boolean
 }
 

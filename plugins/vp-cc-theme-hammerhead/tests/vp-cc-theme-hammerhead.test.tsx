@@ -352,6 +352,16 @@ test('a pasted scheme is kept, drawn in the mode its background belongs to, and 
   await ui.press({ key: 'hammerhead:remove-Ember' })
   expect(looks.at(-1)?.colors?.label).toBe(`${DEFAULTS.dark} / ${DEFAULTS.light}`)
   expect(store.get('settings')).toMatchObject({ custom: [] })
+
+  // A removal can be taken back until the next change, and the scheme returns as the one in force.
+  await ui.press({ key: 'hammerhead:undo' })
+  expect(looks.at(-1)?.colors?.label).toBe(`Ember / ${DEFAULTS.light}`)
+  expect((store.get('settings') as { custom: { name: string }[] }).custom.map(one => one.name)).toEqual(['Ember'])
+  expect(await ui.find({ type: 'Button', text: /Put "Ember" back/ })).toBeUndefined()
+
+  await ui.press({ key: 'hammerhead:remove-Ember' })
+  await ui.press({ key: 'hammerhead:pick-Nord' })
+  expect(await ui.find({ type: 'Button', text: /Put "Ember" back/ })).toBeUndefined()
   await ui.unmount()
 })
 

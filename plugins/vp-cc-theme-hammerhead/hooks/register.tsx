@@ -110,13 +110,13 @@ async function apply($: EngineInterface): Promise<void> {
  * Changes the settings and draws the result. The store is read again right before the write, since every session
  * shares it and a read followed by a write is not atomic.
  */
-async function alter($: EngineInterface, edit: (settings: LookSettings) => LookSettings, notice: string, isRedrawn: boolean): Promise<void> {
+async function alter($: EngineInterface, edit: (settings: LookSettings) => LookSettings, notice: string, isRedrawn: boolean, removed?: Scheme): Promise<void> {
   const stored = readSettings(await $.store.get(STORE_KEY))
   const next = readSettings(edit(stored))
   const isSame = JSON.stringify(next) === JSON.stringify(stored)
   if (!isSame) await $.store.set(STORE_KEY, next)
   await update($, settingsAtom, () => next)
-  await update($, panelAtom, panel => ({ ...panel, notice, isBusy: false }))
+  await update($, panelAtom, ({ removed: _gone, ...panel }) => ({ ...panel, notice, isBusy: false, retry: '', ...(removed === undefined ? {} : { removed }) }))
   // A press that changes nothing, such as a step past its limit, draws nothing.
   if (isSame && !isRedrawn && isApplied && shown === JSON.stringify(next)) return
   try {
@@ -128,8 +128,8 @@ async function alter($: EngineInterface, edit: (settings: LookSettings) => LookS
 }
 
 /** Changes the settings, after any change already under way. `isRedrawn` draws even when the settings stay as they were. */
-function change($: EngineInterface, edit: (settings: LookSettings) => LookSettings, notice: string, isRedrawn = false): Promise<void> {
-  queue = queue.then(() => alter($, edit, notice, isRedrawn)).catch(() => {})
+function change($: EngineInterface, edit: (settings: LookSettings) => LookSettings, notice: string, isRedrawn = false, removed?: Scheme): Promise<void> {
+  queue = queue.then(() => alter($, edit, notice, isRedrawn, removed)).catch(() => {})
 
   return queue
 }
@@ -304,13 +304,14 @@ export const register: Register = on => {
         {controls}
       </Box>
     )
-    /** Two buttons either side of a value. */
+    const isAt = (edit: (now: LookSettings) => LookSettings): boolean => JSON.stringify(edit(settings)) === JSON.stringify(settings)
+    /** Two buttons either side of a value. A side that has reached its limit is dimmed, and pressing it changes nothing. */
     const stepper = (key: string, less: string, more: string, value: string, down: (now: LookSettings) => LookSettings, up: (now: LookSettings) => LookSettings) => [
-      <Button key={`hammerhead:${key}-down`} label={less} onPress={() => change($, down, '')} />,
+      <Button key={`hammerhead:${key}-down`} label={less} dimColor={isAt(down)} onPress={() => change($, down, '')} />,
       <Box key={`value-${key}`} width={6} justifyContent="center">
         <Text tabular>{value}</Text>
       </Box>,
-      <Button key={`hammerhead:${key}-up`} label={more} onPress={() => change($, up, '')} />,
+      <Button key={`hammerhead:${key}-up`} label={more} dimColor={isAt(up)} onPress={() => change($, up, '')} />,
     ]
     /** A button that is lit while its choice is the one in force. */
     const pick = (key: string, label: string, isOn: boolean, edit: (now: LookSettings) => LookSettings, notice = '') => (
@@ -347,6 +348,19 @@ export const register: Register = on => {
         </Text>
       ))
 
+    // What the last action came to. While the model is asked, and after it fails, that is said beside the input the
+    // request was typed in, when its section is open; anything else is said at the top, above every section.
+    const isAsking = (panel.isBusy || (panel.retry ?? '') !== '') && open.includes('own')
+    const said = (panel.notice !== '' || (panel.retry ?? '') !== '' || panel.removed !== undefined) && (
+      <Box key="said" gap={1} alignItems="center" flexWrap="wrap">
+        {panel.notice !== '' && <Text color={panel.isBusy ? undefined : 'text-secondary'}>{panel.notice}</Text>}
+        {(panel.retry ?? '') !== '' && !panel.isBusy && <Button key="hammerhead:retry" label="Try again" onPress={() => make($, panel.retry)} />}
+        {panel.removed !== undefined && (
+          <Button key="hammerhead:undo" label={`Put "${panel.removed.name}" back`} onPress={() => change($, now => withCustom(now, panel.removed!), `"${panel.removed!.name}" is back.`)} />
+        )}
+      </Box>
+    )
+
     return (
       <Box flexDirection="column" gap={1} padding={1}>
         <Text dimColor>One scheme for dark mode and one for light. The app's own appearance setting picks between them.</Text>
@@ -354,6 +368,7 @@ export const register: Register = on => {
           {tab('dark', 'Dark')}
           {tab('light', 'Light')}
         </Box>
+        {!isAsking && said}
 
         {section(
           'schemes',
@@ -383,7 +398,7 @@ export const register: Register = on => {
                       label={`Remove ${scheme.name}`}
                       plain
                       dimColor
-                      onPress={() => change($, now => ({ ...now, custom: now.custom.filter(one => one.name !== scheme.name) }), `Removed "${scheme.name}".`)}
+                      onPress={() => change($, now => ({ ...now, custom: now.custom.filter(one => one.name !== scheme.name) }), `Removed "${scheme.name}".`, false, scheme)}
                     />
                   )}
                 </Box>
@@ -399,6 +414,7 @@ export const register: Register = on => {
           <Box flexDirection="column" gap={1}>
             <Text dimColor>Say what you want in a few words and Claude writes one, or paste a scheme in the Windows Terminal format, as iTerm2-Color-Schemes publishes them. A scheme pasted under the name of one of yours takes its place.</Text>
             <Input key="hammerhead:make" rows={2} placeholder="warm coffee and cream, low contrast" submitLabel="make" onSubmit={text => make($, text)} />
+            {isAsking && said}
             <Button
               key="hammerhead:json"
               label={panel.isJsonShown ? `Hide "${chosen.name}" as JSON` : `Show "${chosen.name}" as JSON`}
@@ -513,9 +529,6 @@ export const register: Register = on => {
             />
           </Box>,
         )}
-
-        {panel.notice !== '' && <Text color={panel.isBusy ? undefined : 'text-secondary'}>{panel.notice}</Text>}
-        {(panel.retry ?? '') !== '' && !panel.isBusy && <Button key="hammerhead:retry" label="Try again" onPress={() => make($, panel.retry)} />}
 
         <Box>
           <Button
