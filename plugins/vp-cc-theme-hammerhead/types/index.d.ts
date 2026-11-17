@@ -69,9 +69,16 @@ export type LookSettings = {
 }
 
 /** What the settings pane shows beside the settings themselves. */
+/** A part of the settings pane that opens and closes. */
+export type Section = 'schemes' | 'own' | 'sea' | 'shark' | 'app'
+
 export type Panel = {
   /** The mode whose scheme is being chosen. */
   slot: Mode
+  /** The sections that are open. The rest show one line saying what they hold. */
+  open: Section[]
+  /** What the person last asked the model for, when that did not end in a scheme: offered again as "Try again". */
+  retry: string
   /** One line about the last action: what was saved, or what was wrong with a pasted scheme. */
   notice: string
   /** True while the model writes a scheme. */

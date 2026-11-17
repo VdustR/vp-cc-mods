@@ -204,6 +204,16 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(looks.at(-1)?.colors?.label).toBe('Catppuccin Mocha / Rose Pine Dawn')
     expect(store.get('settings')).toMatchObject({ dark: 'Catppuccin Mocha', light: 'Rose Pine Dawn' })
 
+    // The sea, the shark and the app start closed: each says in a line what it holds, and shows no control.
+    expect(await ui.find({ type: 'Button', text: 'Blurrier' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /depth 3, 5 waves/ })).toBeDefined()
+    await ui.press({ key: 'hammerhead:section-sea' })
+    await ui.press({ key: 'hammerhead:section-shark' })
+    await ui.press({ key: 'hammerhead:section-app' })
+    expect(await ui.find({ type: 'Button', text: 'Blurrier' })).toBeDefined()
+    // The pane is kept as it was left: the mode being chosen and the sections that are open.
+    expect(store.get('pane')).toMatchObject({ slot: 'light', open: ['schemes', 'sea', 'shark', 'app'] })
+
     // Blur and veil are set apart: a sharp sea can sit under solid bubbles.
     await ui.press({ key: 'hammerhead:blur-down' })
     await ui.press({ key: 'hammerhead:veil-up' })
@@ -256,6 +266,7 @@ test('a pasted scheme is kept, drawn in the mode its background belongs to, and 
 
   // Pasted while choosing for light mode: its background is dark, so it goes to dark mode and the pane follows.
   await ui.press({ key: 'hammerhead:slot-light' })
+  await ui.press({ key: 'hammerhead:section-own' })
   await ui.input({ key: 'hammerhead:make', text: PASTED })
 
   expect(asked).toEqual([])
@@ -274,6 +285,7 @@ test('words go to the model, and its scheme is kept under the name it gave', asy
   await $.session.start(START)
   const ui = await $.ui.mount(pane('desktop'))
 
+  await ui.press({ key: 'hammerhead:section-own' })
   await ui.input({ key: 'hammerhead:make', text: 'embers in a dark room' })
 
   expect(asked.length).toBe(1)
@@ -283,14 +295,19 @@ test('words go to the model, and its scheme is kept under the name it gave', asy
 })
 
 test('a reply that is not a scheme changes nothing and says so', async ($, on) => {
-  const { looks } = engine(on, 'I would rather not.')
+  const { looks, asked } = engine(on, 'I would rather not.')
   await $.session.start(START)
   const ui = await $.ui.mount(pane('desktop'))
   const before = looks.length
 
+  await ui.press({ key: 'hammerhead:section-own' })
   await ui.input({ key: 'hammerhead:make', text: 'anything' })
 
   expect(looks.length).toBe(before)
   expect(await ui.find({ type: 'Text', text: /did not answer with a scheme/ })).toBeDefined()
+  // The request is kept, and one press asks again.
+  await ui.press({ key: 'hammerhead:retry' })
+  expect(asked.length).toBe(2)
+  expect(asked[1]).toContain('anything')
   await ui.unmount()
 })

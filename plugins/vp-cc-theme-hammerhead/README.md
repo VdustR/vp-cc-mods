@@ -33,11 +33,13 @@ Open the settings pane with:
 
 Every change is drawn at once and kept for every session on the machine.
 
+The pane is in sections: **Schemes**, **Your own scheme**, **The sea**, **The shark** and **The app**. Press a heading to open or close its section; a closed one says in a line what it holds. Each of the last three has its own reset. The pane opens as it was left: on the mode you were choosing for, with the same sections open.
+
 | In the pane | What it does |
 | :- | :- |
 | **Dark** and **Light** | Choose which mode's scheme the list below sets. |
-| The scheme list | The shipped schemes for that mode, then your own. Press one to use it. |
-| **Your own scheme** | Type a few words (`warm coffee and cream, low contrast`) and press Enter: Claude writes a scheme for the chosen mode. Or paste a scheme as JSON. It is kept in the list, where **Remove** deletes it. |
+| The scheme list | The shipped schemes for that mode, then your own. Each row shows the scheme's colors, then its water, its ribbons and its shark. Press one to use it. |
+| **Your own scheme** | Type a few words (`warm coffee and cream, low contrast`) and press Enter: Claude writes a scheme for the chosen mode. Or paste a scheme as JSON. It is kept in the list, where **Remove** deletes it. To change one of yours, paste it again under the same name. When Claude does not answer with a scheme, **Try again** asks once more. |
 | **Show as JSON** | Shows the chosen scheme in the terminal format, to copy, edit and paste back. |
 | **Backdrop** | **Moving** is the sea in motion, **Still** the sea at rest, **Plain** the scheme's background alone, with no sea, shark or glass. |
 | **Blur** | How far the sea blurs behind the conversation, 0 to 24. |
@@ -53,7 +55,7 @@ Every change is drawn at once and kept for every session on the machine.
 | **Accent** | The color of buttons, links and switches: the scheme's own choice, or the scheme's red, yellow, green, cyan, blue or purple. |
 | **Use the scheme's code theme** | On, code takes the highlighting theme that matches the scheme. Off, the app keeps the code theme chosen in its Appearance settings. |
 | **Stronger borders** | Asks the app for stronger borders and focus rings. |
-| **Reset to defaults** | Back to Gruvbox Dark and Catppuccin Latte with the standard sea. Your own schemes are kept. |
+| **Reset everything** | Back to Gruvbox Dark and Catppuccin Latte with the standard sea. Your own schemes are kept. |
 
 ### Shipped schemes
 
