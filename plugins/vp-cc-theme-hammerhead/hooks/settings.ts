@@ -1,6 +1,6 @@
 // What a person can choose, with its defaults and its limits.
 
-import type { LookSettings, Mode, Scheme } from '../types'
+import type { Accent, LookSettings, Mode, Scheme } from '../types'
 import { modeOf } from './look'
 import { DEFAULTS, PRESETS } from './presets'
 import { ANSI_KEYS } from './scheme'
@@ -20,9 +20,14 @@ export const DEFAULT_LOOK: LookSettings = {
   waveSpeed: 100,
   glints: 22,
   sharkTone: 4,
+  layers: 2,
+  accent: 'scheme',
   isHighContrast: false,
   custom: [],
 }
+
+/** The accents a person can choose, the scheme's own first. */
+export const ACCENTS: readonly Accent[] = ['scheme', 'red', 'yellow', 'green', 'cyan', 'blue', 'purple']
 
 /** The numbers of glints a person can choose, fewest first. */
 export const GLINTS: readonly number[] = [0, 10, 22, 40]
@@ -106,6 +111,8 @@ export function readSettings(raw: unknown): LookSettings {
     // Earlier versions kept the glints as on or off.
     glints: GLINTS.includes(stored.glints as number) ? (stored.glints as number) : stored.hasGlints === false ? 0 : 22,
     sharkTone: typeof stored.sharkTone === 'number' && Number.isInteger(stored.sharkTone) && stored.sharkTone >= 1 && stored.sharkTone <= 10 ? stored.sharkTone : 4,
+    layers: typeof stored.layers === 'number' && Number.isInteger(stored.layers) && stored.layers >= 0 && stored.layers <= 6 ? stored.layers : 2,
+    accent: ACCENTS.includes(stored.accent as Accent) ? (stored.accent as Accent) : 'scheme',
     isHighContrast: stored.isHighContrast === true,
     custom,
   }

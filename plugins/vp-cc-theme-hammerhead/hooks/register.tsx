@@ -1,12 +1,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Backdrop, LookSettings, Mode, Panel, Scheme } from '../types'
+import type { Accent, Backdrop, LookSettings, Mode, Panel, Scheme } from '../types'
 import { colorsOf, modeOf, seaOf } from './look'
 import { PRESETS } from './presets'
 import { buildScene } from './scene'
 import { parseScheme } from './scheme'
-import { BLUR_MOST, BLUR_STEP, DEFAULT_LOOK, GLINTS, LEAST, MOST, STEP, VEIL_MOST, VEIL_STEP, glassOf, readSettings, schemeOf, schemesFor, withCustom } from './settings'
+import { ACCENTS, BLUR_MOST, BLUR_STEP, DEFAULT_LOOK, GLINTS, LEAST, MOST, STEP, VEIL_MOST, VEIL_STEP, glassOf, readSettings, schemeOf, schemesFor, withCustom } from './settings'
 
 const PLUGIN = 'vp-cc-theme-hammerhead'
 const SCENE_ID = 'hammerhead-sea'
@@ -55,7 +55,7 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
   })
   drawing += 1
   await $.theme.set({
-    colors: colorsOf(dark, light, settings.depth, settings.isHighContrast),
+    colors: colorsOf(dark, light, { depth: settings.depth, layers: settings.layers, accent: settings.accent }, settings.isHighContrast),
     // Plain is the page's own color, which follows the mode; a still ground takes no glass.
     backdrop: settings.backdrop === 'plain' ? { color: 'surface-0' } : { scene: `${SCENE_ID}-${seed}-${drawing}`, glass: glassOf(settings) },
   })
@@ -216,6 +216,14 @@ export const register: Register = on => {
         label={`${label}: ${schemeOf(settings, mode).name}`}
         variant={slot === mode ? 'primary' : 'secondary'}
         onPress={() => update($, panelAtom, now => ({ ...now, slot: mode, notice: '' }))}
+      />
+    )
+    const accent = (choice: Accent) => (
+      <Button
+        key={`hammerhead:accent-${choice}`}
+        label={choice === 'scheme' ? "The scheme's" : choice[0]!.toUpperCase() + choice.slice(1)}
+        variant={settings.accent === choice ? 'primary' : 'secondary'}
+        onPress={() => change($, now => ({ ...now, accent: choice }), '')}
       />
     )
     const backdrop = (kind: Backdrop, label: string) => (
@@ -480,6 +488,30 @@ export const register: Register = on => {
 
         <Box flexDirection="column" gap={1}>
           <Text bold>The app</Text>
+          <Box gap={1} alignItems="center">
+            <Box width={12}>
+              <Text>Layers</Text>
+            </Box>
+            <Button
+              key="hammerhead:layers-down"
+              label="Flatter"
+              onPress={() => change($, now => ({ ...now, layers: Math.max(0, now.layers - 1) }), '')}
+            />
+            <Box width={6} justifyContent="center">
+              <Text tabular>{String(settings.layers)}</Text>
+            </Box>
+            <Button
+              key="hammerhead:layers-up"
+              label="More layered"
+              onPress={() => change($, now => ({ ...now, layers: Math.min(6, now.layers + 1) }), '')}
+            />
+          </Box>
+          <Box gap={1} alignItems="center" flexWrap="wrap">
+            <Box width={12}>
+              <Text>Accent</Text>
+            </Box>
+            {ACCENTS.map(choice => accent(choice))}
+          </Box>
           <Box gap={1} alignItems="center">
             <Box width={12}>
               <Text>Contrast</Text>
