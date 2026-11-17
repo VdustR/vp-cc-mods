@@ -116,7 +116,7 @@ async function alter($: EngineInterface, edit: (settings: LookSettings) => LookS
   const isSame = JSON.stringify(next) === JSON.stringify(stored)
   if (!isSame) await $.store.set(STORE_KEY, next)
   await update($, settingsAtom, () => next)
-  await update($, panelAtom, ({ removed: _gone, ...panel }) => ({ ...panel, notice, isBusy: false, retry: '', ...(removed === undefined ? {} : { removed }) }))
+  await update($, panelAtom, ({ removed: _gone, ...panel }) => ({ ...panel, notice, isBusy: false, retry: '', isSaidByInput: false, ...(removed === undefined ? {} : { removed }) }))
   // A press that changes nothing, such as a step past its limit, draws nothing.
   if (isSame && !isRedrawn && isApplied && shown === JSON.stringify(next)) return
   try {
@@ -129,9 +129,11 @@ async function alter($: EngineInterface, edit: (settings: LookSettings) => LookS
 
 /** Changes the settings, after any change already under way. `isRedrawn` draws even when the settings stay as they were. */
 function change($: EngineInterface, edit: (settings: LookSettings) => LookSettings, notice: string, isRedrawn = false, removed?: Scheme): Promise<void> {
-  queue = queue.then(() => alter($, edit, notice, isRedrawn, removed)).catch(() => {})
+  const done = queue.then(() => alter($, edit, notice, isRedrawn, removed))
+  // The next change runs whatever became of this one; the caller still hears of a failure.
+  queue = done.catch(() => {})
 
-  return queue
+  return done
 }
 
 /**
@@ -147,13 +149,14 @@ async function refresh($: EngineInterface): Promise<void> {
   await apply($)
 }
 
+/** Says something about what was typed in the pane's input, beside that input. */
 async function say($: EngineInterface, notice: string): Promise<void> {
-  await update($, panelAtom, panel => ({ ...panel, notice, isBusy: false }))
+  await update($, panelAtom, panel => ({ ...panel, notice, isBusy: false, isSaidByInput: true }))
 }
 
 /** Says a request to the model came to nothing, and keeps it so the pane can offer it again. */
 async function fail($: EngineInterface, request: string, notice: string): Promise<void> {
-  await update($, panelAtom, panel => ({ ...panel, notice, isBusy: false, retry: request }))
+  await update($, panelAtom, panel => ({ ...panel, notice, isBusy: false, retry: request, isSaidByInput: true }))
 }
 
 /** Changes what the pane shows, and keeps the mode and the open sections for the next time it opens. */
@@ -179,6 +182,8 @@ async function keep($: EngineInterface, scheme: Scheme, slot: Mode): Promise<voi
     : (isFirmer ? ' Its text is drawn brighter or darker than the scheme asks, so the app can paint it.' : '') +
     (left.length === 0 ? '' : ` The app could not paint its ${left.join(', ')}, so ${left.length === 1 ? 'that color is' : 'those colors are'} the app's own.`)
   await change($, now => withCustom(now, scheme), `Saved "${scheme.name}" for ${where}.${eased}`)
+  // A scheme is saved from the input, so that is where the person is looking.
+  await update($, panelAtom, panel => ({ ...panel, isSaidByInput: true }))
 }
 
 /** Takes what the person typed in the pane: a pasted scheme, or words for the model to make one from. */
@@ -192,7 +197,7 @@ async function make($: EngineInterface, text: string): Promise<void> {
 
     return
   }
-  await update($, panelAtom, panel => ({ ...panel, isBusy: true, retry: '', notice: `Asking Claude for a ${slot} scheme...` }))
+  await update($, panelAtom, panel => ({ ...panel, isBusy: true, retry: '', isSaidByInput: true, notice: `Asking Claude for a ${slot} scheme...` }))
   try {
     const reply = await $.model.complete({
       model: 'sonnet',
@@ -256,6 +261,8 @@ export const register: Register = on => {
   on('session.end', ($, e, next) => {
     if (e.reason === 'clear') {
       isApplied = false
+      // The backdrop went with the theme, and a surface draws one again only under a name it has not drawn.
+      drawnAs = ''
     }
 
     return next(e)
@@ -348,9 +355,9 @@ export const register: Register = on => {
         </Text>
       ))
 
-    // What the last action came to. While the model is asked, and after it fails, that is said beside the input the
-    // request was typed in, when its section is open; anything else is said at the top, above every section.
-    const isAsking = (panel.isBusy || (panel.retry ?? '') !== '') && open.includes('own')
+    // What the last action came to. What was typed in the input is answered beside it, while its section is open:
+    // a scheme saved, a paste that is not one, the model asked or failing. Anything else is said at the top.
+    const isAsking = panel.isSaidByInput === true && open.includes('own')
     const said = (panel.notice !== '' || (panel.retry ?? '') !== '' || panel.removed !== undefined) && (
       <Box key="said" gap={1} alignItems="center" flexWrap="wrap">
         {panel.notice !== '' && <Text color={panel.isBusy ? undefined : 'text-secondary'}>{panel.notice}</Text>}

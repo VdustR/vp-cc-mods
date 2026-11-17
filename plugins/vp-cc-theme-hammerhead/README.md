@@ -33,7 +33,7 @@ Open the settings pane with:
 
 Every change is drawn at once and kept for every session on the machine. Another open session draws it at its next prompt.
 
-The pane is in sections: **Schemes**, **Your own scheme**, **The sea**, **The shark** and **The app**. Press a heading to open or close its section; a closed one says in a line what it holds. What the last action came to is said under the mode buttons, above every section. A button that steps a value is dimmed once the value has reached its limit. Each of the last three has its own reset. The pane opens as it was left: on the mode you were choosing for, with the same sections open.
+The pane is in sections: **Schemes**, **Your own scheme**, **The sea**, **The shark** and **The app**. Press a heading to open or close its section; a closed one says in a line what it holds. What the last action came to is said under the mode buttons, above every section; an answer to what you typed is said beside the input. A button that steps a value is dimmed once the value has reached its limit. Each of the last three has its own reset. The pane opens as it was left: on the mode you were choosing for, with the same sections open.
 
 | In the pane | What it does |
 | :- | :- |
