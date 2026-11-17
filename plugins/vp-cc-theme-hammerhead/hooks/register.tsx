@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { Accent, Backdrop, LookSettings, Mode, Panel, Scheme } from '../types'
+import type { Accent, Backdrop, LookSettings, Mode, Panel, Scheme, Section } from '../types'
 import { colorsOf, modeOf, seaOf } from './look'
 import { PRESETS } from './presets'
 import { buildScene } from './scene'
@@ -16,7 +16,10 @@ const PANE_TITLE = 'Hammerhead theme'
 const STORE_KEY = 'settings'
 
 const settingsAtom = atom({ plugin: 'vp-cc-theme-hammerhead', key: 'settings' } as const, DEFAULT_LOOK)
-const panelAtom = atom({ plugin: 'vp-cc-theme-hammerhead', key: 'panel' } as const, { slot: 'dark', notice: '', isBusy: false, isJsonShown: false })
+const panelAtom = atom({ plugin: 'vp-cc-theme-hammerhead', key: 'panel' } as const, { slot: 'dark', open: ['schemes'], retry: '', notice: '', isBusy: false, isJsonShown: false })
+
+/** Where the pane keeps which mode and which sections were last open, so it opens as it was left. */
+const PANE_KEY = 'pane'
 
 // The shark's route. One per load, so a redraw never moves the shark; "New route" draws another.
 let seed = Math.floor(Math.random() * 2147483646)
@@ -103,6 +106,21 @@ async function say($: EngineInterface, notice: string): Promise<void> {
   await update($, panelAtom, panel => ({ ...panel, notice, isBusy: false }))
 }
 
+/** Says a request to the model came to nothing, and keeps it so the pane can offer it again. */
+async function fail($: EngineInterface, request: string, notice: string): Promise<void> {
+  await update($, panelAtom, panel => ({ ...panel, notice, isBusy: false, retry: request }))
+}
+
+/** Changes what the pane shows, and keeps the mode and the open sections for the next time it opens. */
+async function show($: EngineInterface, edit: (panel: Panel) => Panel): Promise<void> {
+  const next = await update($, panelAtom, edit)
+  try {
+    await $.store.set(PANE_KEY, { slot: next.slot, open: next.open })
+  } catch {
+    // The pane works without remembering how it was left.
+  }
+}
+
 /** Saves a scheme of the person's own and draws it in the mode it belongs to. */
 async function keep($: EngineInterface, scheme: Scheme, slot: Mode): Promise<void> {
   const mode = modeOf(scheme)
@@ -122,7 +140,7 @@ async function make($: EngineInterface, text: string): Promise<void> {
 
     return
   }
-  await update($, panelAtom, panel => ({ ...panel, isBusy: true, notice: `Asking Claude for a ${slot} scheme...` }))
+  await update($, panelAtom, panel => ({ ...panel, isBusy: true, retry: '', notice: `Asking Claude for a ${slot} scheme...` }))
   try {
     const reply = await $.model.complete({
       model: 'sonnet',
@@ -131,19 +149,32 @@ async function make($: EngineInterface, text: string): Promise<void> {
       maxTokens: 1200,
     })
     if (!reply.isAnswered) {
-      await say($, 'Claude could not be reached. Try again, or paste a scheme.')
+      await fail($, request, 'Claude could not be reached.')
 
       return
     }
     const made = parseScheme(reply.text, request.slice(0, 32))
-    await (typeof made === 'string' ? say($, 'Claude did not answer with a scheme. Try other words, or paste one.') : keep($, made, slot))
+    await (typeof made === 'string' ? fail($, request, 'Claude did not answer with a scheme. Try again, or use other words.') : keep($, made, slot))
   } catch {
-    await say($, 'Claude could not be reached. Try again, or paste a scheme.')
+    await fail($, request, 'Claude could not be reached.')
   }
 }
 
+const SECTIONS: readonly Section[] = ['schemes', 'own', 'sea', 'shark', 'app']
+
 async function openPane($: EngineInterface): Promise<boolean> {
   await load($)
+  try {
+    const kept = (await $.store.get(PANE_KEY)) as { slot?: unknown; open?: unknown } | undefined
+    const open = Array.isArray(kept?.open) ? SECTIONS.filter(section => (kept.open as unknown[]).includes(section)) : undefined
+    await update($, panelAtom, panel => ({
+      ...panel,
+      slot: kept?.slot === 'light' || kept?.slot === 'dark' ? kept.slot : panel.slot,
+      open: open ?? panel.open,
+    }))
+  } catch {
+    // The pane opens on what this session last showed.
+  }
   const opened = await $.ui.open({ id: PANE, title: PANE_TITLE })
 
   return opened.isPlaced
@@ -208,56 +239,63 @@ export const register: Register = on => {
     const settings = await read($, settingsAtom)
     const panel = await read($, panelAtom)
     const { slot } = panel
+    // State kept from an earlier version of the pane has no list of open sections.
+    const open: readonly Section[] = panel.open ?? ['schemes']
     const chosen = schemeOf(settings, slot)
+    const isSea = settings.backdrop !== 'plain'
     const isOwn = (scheme: Scheme): boolean => !PRESETS.some(preset => preset.name === scheme.name)
+
+    /** A setting's name, then its controls on one line. */
+    const row = (label: string, controls: RenderChildren) => (
+      <Box gap={1} alignItems="center" flexWrap="wrap">
+        <Box width={12}>
+          <Text>{label}</Text>
+        </Box>
+        {controls}
+      </Box>
+    )
+    /** Two buttons either side of a value. */
+    const stepper = (key: string, less: string, more: string, value: string, down: (now: LookSettings) => LookSettings, up: (now: LookSettings) => LookSettings) => [
+      <Button key={`hammerhead:${key}-down`} label={less} onPress={() => change($, down, '')} />,
+      <Box key={`value-${key}`} width={6} justifyContent="center">
+        <Text tabular>{value}</Text>
+      </Box>,
+      <Button key={`hammerhead:${key}-up`} label={more} onPress={() => change($, up, '')} />,
+    ]
+    /** A button that is lit while its choice is the one in force. */
+    const pick = (key: string, label: string, isOn: boolean, edit: (now: LookSettings) => LookSettings, notice = '') => (
+      <Button key={`hammerhead:${key}`} label={label} variant={isOn ? 'primary' : 'secondary'} onPress={() => change($, edit, notice)} />
+    )
+    /** A part of the pane under a heading that opens and closes it. Closed, it says in one line what it holds. */
+    const section = (id: Section, title: string, summary: string, body: RenderChildren) => {
+      const isOpen = open.includes(id)
+
+      return (
+        <Box key={`section-${id}`} flexDirection="column" gap={1}>
+          <Button
+            key={`hammerhead:section-${id}`}
+            label={`${isOpen ? '▾' : '▸'} ${title}`}
+            plain
+            onPress={() => show($, now => ({ ...now, open: isOpen ? (now.open ?? []).filter(one => one !== id) : [...(now.open ?? []), id] }))}
+          />
+          {isOpen ? body : <Text dimColor>{summary}</Text>}
+        </Box>
+      )
+    }
     const tab = (mode: Mode, label: string) => (
       <Button
         key={`hammerhead:slot-${mode}`}
         label={`${label}: ${schemeOf(settings, mode).name}`}
         variant={slot === mode ? 'primary' : 'secondary'}
-        onPress={() => update($, panelAtom, now => ({ ...now, slot: mode, notice: '' }))}
+        onPress={() => show($, now => ({ ...now, slot: mode, notice: '' }))}
       />
     )
-    const accent = (choice: Accent) => (
-      <Button
-        key={`hammerhead:accent-${choice}`}
-        label={choice === 'scheme' ? "The scheme's" : choice[0]!.toUpperCase() + choice.slice(1)}
-        variant={settings.accent === choice ? 'primary' : 'secondary'}
-        onPress={() => change($, now => ({ ...now, accent: choice }), '')}
-      />
-    )
-    const backdrop = (kind: Backdrop, label: string) => (
-      <Button
-        key={`hammerhead:backdrop-${kind}`}
-        label={label}
-        variant={settings.backdrop === kind ? 'primary' : 'secondary'}
-        onPress={() => change($, now => ({ ...now, backdrop: kind }), `Backdrop: ${label.toLowerCase()}.`)}
-      />
-    )
-    const toggle = (key: string, label: string, isOn: boolean, flip: (now: LookSettings) => LookSettings) => (
-      <Button key={`hammerhead:${key}`} label={label} variant={isOn ? 'primary' : 'secondary'} onPress={() => change($, flip, '')} />
-    )
-    const isSea = settings.backdrop !== 'plain'
-    const stepper = (field: 'size' | 'speed', label: string, less: string, more: string) => (
-      <Box gap={1} alignItems="center">
-        <Box width={12}>
-          <Text>{label}</Text>
-        </Box>
-        <Button
-          key={`hammerhead:${field}-down`}
-          label={less}
-          onPress={() => change($, now => (field === 'size' ? { ...now, size: step(now.size, -STEP) } : { ...now, speed: step(now.speed, -STEP) }), '')}
-        />
-        <Box width={6} justifyContent="center">
-          <Text tabular>{`${field === 'size' ? settings.size : settings.speed}%`}</Text>
-        </Box>
-        <Button
-          key={`hammerhead:${field}-up`}
-          label={more}
-          onPress={() => change($, now => (field === 'size' ? { ...now, size: step(now.size, STEP) } : { ...now, speed: step(now.speed, STEP) }), '')}
-        />
-      </Box>
-    )
+    const swatches = (colors: readonly string[], name: string) =>
+      colors.map((color, at) => (
+        <Text key={`${name}-${at}`} backgroundColor={color} color={color}>
+          {'██'}
+        </Text>
+      ))
 
     return (
       <Box flexDirection="column" gap={1} padding={1}>
@@ -267,52 +305,50 @@ export const register: Register = on => {
           {tab('light', 'Light')}
         </Box>
 
-        <Box flexDirection="column">
-          {schemesFor(settings, slot).map(scheme => (
-            <Box key={`row-${scheme.name}`} gap={1} alignItems="center">
-              <Box flexGrow={1}>
-                <Button
-                  key={`hammerhead:pick-${scheme.name}`}
-                  label={scheme.name}
-                  variant={scheme.name === chosen.name ? 'primary' : 'secondary'}
-                  onPress={() => change($, now => (slot === 'dark' ? { ...now, dark: scheme.name } : { ...now, light: scheme.name }), `${slot === 'dark' ? 'Dark' : 'Light'} mode: ${scheme.name}.`)}
-                />
-              </Box>
-              <Box>
-                {[scheme.background, scheme.foreground, scheme.red, scheme.yellow, scheme.green, scheme.cyan, scheme.blue, scheme.purple].map((color, at) => (
-                  <Text key={`swatch-${at}`} backgroundColor={color} color={color}>
-                    {'██'}
-                  </Text>
-                ))}
-              </Box>
-              {isOwn(scheme) && (
-                <Button
-                  key={`hammerhead:remove-${scheme.name}`}
-                  label={`Remove ${scheme.name}`}
-                  plain
-                  dimColor
-                  onPress={() => change($, now => ({ ...now, custom: now.custom.filter(one => one.name !== scheme.name) }), `Removed "${scheme.name}".`)}
-                />
-              )}
-            </Box>
-          ))}
-        </Box>
+        {section(
+          'schemes',
+          'Schemes',
+          `${chosen.name}, of ${schemesFor(settings, slot).length} for ${slot} mode.`,
+          <Box flexDirection="column">
+            <Text dimColor>Each row: the scheme's colors, then its water, its ribbons and its shark.</Text>
+            {schemesFor(settings, slot).map(scheme => {
+              const sea = seaOf(scheme, settings.depth, settings.sharkTone)
 
-        <Box flexDirection="column">
-          <Text bold>Your own scheme, for {slot} mode</Text>
-          <Text dimColor>Say what you want in a few words and Claude writes one, or paste a scheme in the Windows Terminal format, as iTerm2-Color-Schemes publishes them.</Text>
-          <Input
-            key="hammerhead:make"
-            rows={2}
-            placeholder="warm coffee and cream, low contrast"
-            submitLabel="make"
-            onSubmit={text => make($, text)}
-          />
-          {panel.notice !== '' && <Text color={panel.isBusy ? undefined : 'text-secondary'}>{panel.notice}</Text>}
-        </Box>
+              return (
+                <Box key={`row-${scheme.name}`} gap={1} alignItems="center">
+                  <Box flexGrow={1}>
+                    {pick(
+                      `pick-${scheme.name}`,
+                      scheme.name,
+                      scheme.name === chosen.name,
+                      now => (slot === 'dark' ? { ...now, dark: scheme.name } : { ...now, light: scheme.name }),
+                      `${slot === 'dark' ? 'Dark' : 'Light'} mode: ${scheme.name}.`,
+                    )}
+                  </Box>
+                  <Box>{swatches([scheme.background, scheme.foreground, scheme.red, scheme.yellow, scheme.green, scheme.cyan, scheme.blue, scheme.purple], 'color')}</Box>
+                  <Box>{swatches([sea.mid, sea.light, sea.shark], 'sea')}</Box>
+                  {isOwn(scheme) && (
+                    <Button
+                      key={`hammerhead:remove-${scheme.name}`}
+                      label={`Remove ${scheme.name}`}
+                      plain
+                      dimColor
+                      onPress={() => change($, now => ({ ...now, custom: now.custom.filter(one => one.name !== scheme.name) }), `Removed "${scheme.name}".`)}
+                    />
+                  )}
+                </Box>
+              )
+            })}
+          </Box>,
+        )}
 
-        <Box flexDirection="column">
-          <Box gap={1} alignItems="center">
+        {section(
+          'own',
+          `Your own scheme, for ${slot} mode`,
+          'Describe one for Claude to write, or paste one. To change one of yours, paste it again under the same name.',
+          <Box flexDirection="column" gap={1}>
+            <Text dimColor>Say what you want in a few words and Claude writes one, or paste a scheme in the Windows Terminal format, as iTerm2-Color-Schemes publishes them. A scheme pasted under the name of one of yours takes its place.</Text>
+            <Input key="hammerhead:make" rows={2} placeholder="warm coffee and cream, low contrast" submitLabel="make" onSubmit={text => make($, text)} />
             <Button
               key="hammerhead:json"
               label={panel.isJsonShown ? `Hide "${chosen.name}" as JSON` : `Show "${chosen.name}" as JSON`}
@@ -320,216 +356,121 @@ export const register: Register = on => {
               dimColor
               onPress={() => update($, panelAtom, now => ({ ...now, isJsonShown: !now.isJsonShown }))}
             />
-          </Box>
-          {panel.isJsonShown && <Code source={toJson(chosen)} language="json" />}
-        </Box>
+            {panel.isJsonShown && <Code source={toJson(chosen)} language="json" />}
+          </Box>,
+        )}
 
-        <Box flexDirection="column" gap={1}>
-          <Text bold>The sea</Text>
-          <Box gap={1} alignItems="center" flexWrap="wrap">
-            <Box width={12}>
-              <Text>Backdrop</Text>
-            </Box>
-            {backdrop('moving', 'Moving')}
-            {backdrop('still', 'Still')}
-            {backdrop('plain', 'Plain')}
-          </Box>
-          {!isSea && <Text dimColor>Plain is the scheme's background alone: no sea, no shark, no glass.</Text>}
-          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
-            <Box width={12}>
-              <Text>Blur</Text>
-            </Box>
+        {section(
+          'sea',
+          'The sea',
+          settings.backdrop === 'plain' ? 'Plain: the background alone.' : `${settings.backdrop === 'moving' ? 'Moving' : 'Still'}, depth ${settings.depth}, ${settings.waves} waves, blur ${settings.blur}, veil ${settings.veil}%.`,
+          <Box flexDirection="column" gap={1}>
+            {row('Backdrop', [
+              pick('backdrop-moving', 'Moving', settings.backdrop === 'moving', now => ({ ...now, backdrop: 'moving' as Backdrop })),
+              pick('backdrop-still', 'Still', settings.backdrop === 'still', now => ({ ...now, backdrop: 'still' as Backdrop })),
+              pick('backdrop-plain', 'Plain', settings.backdrop === 'plain', now => ({ ...now, backdrop: 'plain' as Backdrop })),
+            ])}
+            {!isSea && <Text dimColor>Plain is the scheme's background alone: no sea, no shark, no glass.</Text>}
+            {isSea && row('Depth', stepper('depth', 'Shallower', 'Deeper', String(settings.depth), now => ({ ...now, depth: Math.max(1, now.depth - 1) }), now => ({ ...now, depth: Math.min(10, now.depth + 1) })))}
+            {isSea && row('Blur', stepper('blur', 'Sharper', 'Blurrier', String(settings.blur), now => ({ ...now, blur: Math.max(0, now.blur - BLUR_STEP) }), now => ({ ...now, blur: Math.min(BLUR_MOST, now.blur + BLUR_STEP) })))}
+            {isSea && row('Veil', stepper('veil', 'Thinner', 'Thicker', `${settings.veil}%`, now => ({ ...now, veil: Math.max(0, now.veil - VEIL_STEP) }), now => ({ ...now, veil: Math.min(VEIL_MOST, now.veil + VEIL_STEP) })))}
+            {isSea && <Text dimColor>Blur softens the sea. Veil lays the app's panel color over it: a thick veil makes message bubbles solid, a thin one leaves them see-through.</Text>}
+            {isSea && row('Waves', stepper('waves', 'Fewer waves', 'More waves', String(settings.waves), now => ({ ...now, waves: Math.max(3, now.waves - 2) }), now => ({ ...now, waves: Math.min(7, now.waves + 2) })))}
+            {isSea && row('Wave speed', stepper('wave-speed', 'Calmer', 'Livelier', `${settings.waveSpeed}%`, now => ({ ...now, waveSpeed: step(now.waveSpeed, -STEP) }), now => ({ ...now, waveSpeed: step(now.waveSpeed, STEP) })))}
+            {isSea &&
+              row(
+                'Glints',
+                stepper(
+                  'glints',
+                  'Fewer glints',
+                  'More glints',
+                  String(settings.glints),
+                  now => ({ ...now, glints: GLINTS[Math.max(0, GLINTS.indexOf(now.glints) - 1)] ?? 0 }),
+                  now => ({ ...now, glints: GLINTS[Math.min(GLINTS.length - 1, GLINTS.indexOf(now.glints) + 1)] ?? 22 }),
+                ),
+              )}
             <Button
-              key="hammerhead:blur-down"
-              label="Sharper"
-              onPress={() => change($, now => ({ ...now, blur: Math.max(0, now.blur - BLUR_STEP) }), '')}
+              key="hammerhead:reset-sea"
+              label="Reset the sea"
+              plain
+              dimColor
+              onPress={() =>
+                change(
+                  $,
+                  now => ({ ...now, backdrop: DEFAULT_LOOK.backdrop, depth: DEFAULT_LOOK.depth, blur: DEFAULT_LOOK.blur, veil: DEFAULT_LOOK.veil, waves: DEFAULT_LOOK.waves, waveSpeed: DEFAULT_LOOK.waveSpeed, glints: DEFAULT_LOOK.glints }),
+                  'The sea is back to its defaults.',
+                )
+              }
             />
-            <Box width={6} justifyContent="center">
-              <Text tabular>{String(settings.blur)}</Text>
-            </Box>
-            <Button
-              key="hammerhead:blur-up"
-              label="Blurrier"
-              onPress={() => change($, now => ({ ...now, blur: Math.min(BLUR_MOST, now.blur + BLUR_STEP) }), '')}
-            />
-          </Box>
-          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
-            <Box width={12}>
-              <Text>Veil</Text>
-            </Box>
-            <Button
-              key="hammerhead:veil-down"
-              label="Thinner"
-              onPress={() => change($, now => ({ ...now, veil: Math.max(0, now.veil - VEIL_STEP) }), '')}
-            />
-            <Box width={6} justifyContent="center">
-              <Text tabular>{`${settings.veil}%`}</Text>
-            </Box>
-            <Button
-              key="hammerhead:veil-up"
-              label="Thicker"
-              onPress={() => change($, now => ({ ...now, veil: Math.min(VEIL_MOST, now.veil + VEIL_STEP) }), '')}
-            />
-          </Box>
-          {isSea && <Text dimColor>Blur softens the sea. Veil lays the app's panel color over it: a thick veil makes message bubbles solid, a thin one leaves them see-through.</Text>}
-          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
-            <Box width={12}>
-              <Text>Depth</Text>
-            </Box>
-            <Button
-              key="hammerhead:depth-down"
-              label="Shallower"
-              onPress={() => change($, now => ({ ...now, depth: Math.max(1, now.depth - 1) }), '')}
-            />
-            <Box width={6} justifyContent="center">
-              <Text tabular>{String(settings.depth)}</Text>
-            </Box>
-            <Button
-              key="hammerhead:depth-up"
-              label="Deeper"
-              onPress={() => change($, now => ({ ...now, depth: Math.min(10, now.depth + 1) }), '')}
-            />
-          </Box>
-          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
-            <Box width={12}>
-              <Text>Waves</Text>
-            </Box>
-            <Button
-              key="hammerhead:waves-down"
-              label="Fewer waves"
-              onPress={() => change($, now => ({ ...now, waves: Math.max(3, now.waves - 2) }), '')}
-            />
-            <Box width={6} justifyContent="center">
-              <Text tabular>{String(settings.waves)}</Text>
-            </Box>
-            <Button
-              key="hammerhead:waves-up"
-              label="More waves"
-              onPress={() => change($, now => ({ ...now, waves: Math.min(7, now.waves + 2) }), '')}
-            />
-          </Box>
-          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
-            <Box width={12}>
-              <Text>Wave speed</Text>
-            </Box>
-            <Button
-              key="hammerhead:wave-speed-down"
-              label="Calmer"
-              onPress={() => change($, now => ({ ...now, waveSpeed: step(now.waveSpeed, -STEP) }), '')}
-            />
-            <Box width={6} justifyContent="center">
-              <Text tabular>{`${settings.waveSpeed}%`}</Text>
-            </Box>
-            <Button
-              key="hammerhead:wave-speed-up"
-              label="Livelier"
-              onPress={() => change($, now => ({ ...now, waveSpeed: step(now.waveSpeed, STEP) }), '')}
-            />
-          </Box>
-          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
-            <Box width={12}>
-              <Text>Glints</Text>
-            </Box>
-            <Button
-              key="hammerhead:glints-down"
-              label="Fewer glints"
-              onPress={() => change($, now => ({ ...now, glints: GLINTS[Math.max(0, GLINTS.indexOf(now.glints) - 1)] ?? 0 }), '')}
-            />
-            <Box width={6} justifyContent="center">
-              <Text tabular>{String(settings.glints)}</Text>
-            </Box>
-            <Button
-              key="hammerhead:glints-up"
-              label="More glints"
-              onPress={() => change($, now => ({ ...now, glints: GLINTS[Math.min(GLINTS.length - 1, GLINTS.indexOf(now.glints) + 1)] ?? 22 }), '')}
-            />
-          </Box>
-          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
-            <Box width={12}>
-              <Text>Shark</Text>
-            </Box>
-            <Button
-              key="hammerhead:shark"
-              label={settings.isSharkShown ? 'Shown' : 'Hidden'}
-              variant={settings.isSharkShown ? 'primary' : 'secondary'}
-              onPress={() => change($, now => ({ ...now, isSharkShown: !now.isSharkShown }), '')}
-            />
-            <Button
-              key="hammerhead:route"
-              label="New route"
-              onPress={() => {
-                seed = Math.floor(Math.random() * 2147483646)
+          </Box>,
+        )}
 
-                return change($, now => now, 'The shark took a new route.')
-              }}
-            />
-          </Box>
-          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
-            <Box width={12}>
-              <Text>Shark tone</Text>
-            </Box>
-            <Button
-              key="hammerhead:shark-tone-down"
-              label="Fainter"
-              onPress={() => change($, now => ({ ...now, sharkTone: Math.max(1, now.sharkTone - 1) }), '')}
-            />
-            <Box width={6} justifyContent="center">
-              <Text tabular>{String(settings.sharkTone)}</Text>
-            </Box>
-            <Button
-              key="hammerhead:shark-tone-up"
-              label="Bolder"
-              onPress={() => change($, now => ({ ...now, sharkTone: Math.min(10, now.sharkTone + 1) }), '')}
-            />
-          </Box>
-          {isSea && stepper('size', 'Shark size', 'Smaller', 'Larger')}
-          {isSea && stepper('speed', 'Swim speed', 'Slower', 'Faster')}
-        </Box>
+        {isSea &&
+          section(
+            'shark',
+            'The shark',
+            settings.isSharkShown ? `Shown, tone ${settings.sharkTone}, size ${settings.size}%, speed ${settings.speed}%.` : 'Hidden.',
+            <Box flexDirection="column" gap={1}>
+              {row('Shark', [
+                pick('shark', settings.isSharkShown ? 'Shown' : 'Hidden', settings.isSharkShown, now => ({ ...now, isSharkShown: !now.isSharkShown })),
+                <Button
+                  key="hammerhead:route"
+                  label="New route"
+                  onPress={() => {
+                    seed = Math.floor(Math.random() * 2147483646)
 
-        <Box flexDirection="column" gap={1}>
-          <Text bold>The app</Text>
-          <Box gap={1} alignItems="center">
-            <Box width={12}>
-              <Text>Layers</Text>
-            </Box>
+                    return change($, now => now, 'The shark took a new route.')
+                  }}
+                />,
+              ])}
+              {row('Tone', stepper('shark-tone', 'Fainter', 'Bolder', String(settings.sharkTone), now => ({ ...now, sharkTone: Math.max(1, now.sharkTone - 1) }), now => ({ ...now, sharkTone: Math.min(10, now.sharkTone + 1) })))}
+              {row('Size', stepper('size', 'Smaller', 'Larger', `${settings.size}%`, now => ({ ...now, size: step(now.size, -STEP) }), now => ({ ...now, size: step(now.size, STEP) })))}
+              {row('Swim speed', stepper('speed', 'Slower', 'Faster', `${settings.speed}%`, now => ({ ...now, speed: step(now.speed, -STEP) }), now => ({ ...now, speed: step(now.speed, STEP) })))}
+              <Button
+                key="hammerhead:reset-shark"
+                label="Reset the shark"
+                plain
+                dimColor
+                onPress={() =>
+                  change($, now => ({ ...now, isSharkShown: DEFAULT_LOOK.isSharkShown, sharkTone: DEFAULT_LOOK.sharkTone, size: DEFAULT_LOOK.size, speed: DEFAULT_LOOK.speed }), 'The shark is back to its defaults.')
+                }
+              />
+            </Box>,
+          )}
+
+        {section(
+          'app',
+          'The app',
+          `Layers ${settings.layers}, ${settings.accent === 'scheme' ? "the scheme's accent" : `${settings.accent} accent`}${settings.isCodeThemed ? ", the scheme's code theme" : ''}${settings.isHighContrast ? ', stronger borders' : ''}.`,
+          <Box flexDirection="column" gap={1}>
+            {row('Layers', stepper('layers', 'Flatter', 'More layered', String(settings.layers), now => ({ ...now, layers: Math.max(0, now.layers - 1) }), now => ({ ...now, layers: Math.min(6, now.layers + 1) })))}
+            {row(
+              'Accent',
+              ACCENTS.map(choice =>
+                pick(`accent-${choice}`, choice === 'scheme' ? "The scheme's" : choice[0]!.toUpperCase() + choice.slice(1), settings.accent === choice, now => ({ ...now, accent: choice as Accent })),
+              ),
+            )}
+            {row('Code', pick('code-theme', "Use the scheme's code theme", settings.isCodeThemed, now => ({ ...now, isCodeThemed: !now.isCodeThemed })))}
+            {row('Contrast', pick('contrast', 'Stronger borders', settings.isHighContrast, now => ({ ...now, isHighContrast: !now.isHighContrast })))}
             <Button
-              key="hammerhead:layers-down"
-              label="Flatter"
-              onPress={() => change($, now => ({ ...now, layers: Math.max(0, now.layers - 1) }), '')}
+              key="hammerhead:reset-app"
+              label="Reset the app"
+              plain
+              dimColor
+              onPress={() =>
+                change($, now => ({ ...now, layers: DEFAULT_LOOK.layers, accent: DEFAULT_LOOK.accent, isCodeThemed: DEFAULT_LOOK.isCodeThemed, isHighContrast: DEFAULT_LOOK.isHighContrast }), 'The app is back to its defaults.')
+              }
             />
-            <Box width={6} justifyContent="center">
-              <Text tabular>{String(settings.layers)}</Text>
-            </Box>
-            <Button
-              key="hammerhead:layers-up"
-              label="More layered"
-              onPress={() => change($, now => ({ ...now, layers: Math.min(6, now.layers + 1) }), '')}
-            />
-          </Box>
-          <Box gap={1} alignItems="center" flexWrap="wrap">
-            <Box width={12}>
-              <Text>Accent</Text>
-            </Box>
-            {ACCENTS.map(choice => accent(choice))}
-          </Box>
-          <Box gap={1} alignItems="center">
-            <Box width={12}>
-              <Text>Code</Text>
-            </Box>
-            {toggle('code-theme', "Use the scheme's code theme", settings.isCodeThemed, now => ({ ...now, isCodeThemed: !now.isCodeThemed }))}
-          </Box>
-          <Box gap={1} alignItems="center">
-            <Box width={12}>
-              <Text>Contrast</Text>
-            </Box>
-            {toggle('contrast', 'Stronger borders', settings.isHighContrast, now => ({ ...now, isHighContrast: !now.isHighContrast }))}
-          </Box>
-        </Box>
+          </Box>,
+        )}
+
+        {panel.notice !== '' && <Text color={panel.isBusy ? undefined : 'text-secondary'}>{panel.notice}</Text>}
+        {(panel.retry ?? '') !== '' && !panel.isBusy && <Button key="hammerhead:retry" label="Try again" onPress={() => make($, panel.retry)} />}
 
         <Box>
           <Button
             key="hammerhead:reset"
-            label="Reset to defaults"
+            label="Reset everything"
             plain
             dimColor
             onPress={() => change($, now => ({ ...DEFAULT_LOOK, custom: now.custom }), 'Back to the defaults. Your own schemes are kept.')}
