@@ -15,7 +15,7 @@ The stock look is neutral by design. This theme gives long sessions a warmer, qu
 
 - **The app:** the page takes the scheme's background, and cards, panels and menus step away from it by a small, fixed amount. Buttons and links take the scheme's accent; red, green, yellow and purple color errors, successes, warnings and the rest.
 - **The sea:** shades of the scheme's background, never a hue it does not have. The ribbons are always the lighter of the two, as light on water is. On a dark scheme the water is the background and the ribbons are a lighter shade of it. On a light scheme, which has no room above its background, the ribbons are the background and the water is a darker shade of it. **Depth** sets how far apart they are.
-- **The shark:** a pure silhouette seen from above, a shade further from the water: paler on a dark scheme, darker on a light one. Its head is a great hammerhead's: a short, broad hammer on a thick neck, its front edge bowed gently forward, each end a flat block. A wave travels down its body to the tail in a slow S, its head sweeps the other way, and the two lobes of its tail, one long and one short, open into a fork as the tail sweeps and close as it turns.
+- **The shark:** a pure silhouette seen from above, a shade further from the water: paler on a dark scheme, darker on a light one. Its head is a great hammerhead's: a short, broad hammer set straight on the body at its full width, its front edge bowed gently forward, each end a flat block. A wave travels down its body to the tail in a slow S, its head sweeps the other way, and the two lobes of its tail, one long and one short, open into a fork as the tail sweeps and close as it turns.
 
 ## Use
 
@@ -43,8 +43,11 @@ Every change is drawn at once and kept for every session on the machine.
 | **Blur** | How far the sea blurs behind the conversation, 0 to 24. |
 | **Veil** | How opaque the app's own panel color lies over the sea, 0% to 80%. A message bubble is a panel: a thick veil makes bubbles solid, a thin one leaves them see-through. With both at 0 the sea is bare. |
 | **Depth** | How far the water and its ribbons are apart, 1 (barely there) to 10 (deep). The default is 3. |
-| **Waves** | Three, five or seven ribbons, and whether specks of light twinkle on the water. |
+| **Waves** | Three, five or seven ribbons. |
+| **Wave speed** | How fast the ribbons drift, 50% to 200% of their own pace. |
+| **Glints** | How many specks of light twinkle on the water: 0, 10, 22 or 40. |
 | **Shark** | Shows or hides the shark. **New route** sends it another way. |
+| **Shark tone** | How far the shark stands out from the water, 1 (faint) to 10 (bold). The default is 4. |
 | **Shark size** and **Swim speed** | 50% to 200% of its own, in steps of 25. |
 | **Stronger borders** | Asks the app for stronger borders and focus rings. |
 | **Reset to defaults** | Back to Gruvbox Dark and Catppuccin Latte with the standard sea. Your own schemes are kept. |
@@ -94,7 +97,7 @@ The theme draws in the Claude desktop and mobile apps. The terminal and the edit
 - At `session.start` the plugin reads its settings from `$.store`, works out the look and calls `$.theme.set` with the colors for both modes and a backdrop scene. After `/clear`, which raises no `session.start`, the next prompt sets the theme again.
 - The app's colors come from the design system's own builder, `make-colors.js`, which ships inside Claude Code's `plugin-authoring` skill and is copied here unchanged. The plugin gives it a few colors a mode and it names the hundred the app needs.
 - The Desktop app ignores a whole theme when one piece of text falls under its contrast floor. A scheme that would fail is eased until it passes: flatter surfaces first, then the one role color at fault is left to the app's own.
-- The sea's shades are the background moved lighter or darker in OKLCH, with its hue and chroma kept, until they reach a set contrast: 1.1 at depth 1 to 2.0 at depth 10 for the ribbons, 2.4 for the shark. Mixing in the foreground instead grays a warm background, since a scheme's text is rarely its background's hue.
+- The sea's shades are the background moved lighter or darker in OKLCH, with its hue and chroma kept, until they reach a set contrast: 1.1 at depth 1 to 2.0 at depth 10 for the ribbons, and 1.5 at tone 1 to 4.2 at tone 10 for the shark. Mixing in the foreground instead grays a warm background, since a scheme's text is rarely its background's hue.
 - Text is held to 7:1 on the worst ground it is read on: the page, a card, the water, the water under a ribbon, and a filled control on a menu.
 - A `ui.render` hook on `Backdrop` answers the scene with one SVG. The SVG holds no script; it animates with its own CSS. The surface tells a scene nothing about light or dark, so the SVG carries both modes' palettes and switches with a `prefers-color-scheme` media query.
 - The shark follows a CSS motion path (`offset-path` with `offset-rotate: auto`), so it turns to face where it goes. Its body is a chain of hinged segments that swing on one slow beat, each a little later than the one before. The tail fin is two lobes hinged on the end of the stalk, swinging opposite ways on that beat: a blade the water leans over shows its upper lobe to one side and its lower lobe to the other.

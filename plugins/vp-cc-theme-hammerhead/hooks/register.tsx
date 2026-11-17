@@ -6,7 +6,7 @@ import { colorsOf, modeOf, seaOf } from './look'
 import { PRESETS } from './presets'
 import { buildScene } from './scene'
 import { parseScheme } from './scheme'
-import { BLUR_MOST, BLUR_STEP, DEFAULT_LOOK, LEAST, MOST, STEP, VEIL_MOST, VEIL_STEP, glassOf, readSettings, schemeOf, schemesFor, withCustom } from './settings'
+import { BLUR_MOST, BLUR_STEP, DEFAULT_LOOK, GLINTS, LEAST, MOST, STEP, VEIL_MOST, VEIL_STEP, glassOf, readSettings, schemeOf, schemesFor, withCustom } from './settings'
 
 const PLUGIN = 'vp-cc-theme-hammerhead'
 const SCENE_ID = 'hammerhead-sea'
@@ -43,13 +43,14 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
   const dark = schemeOf(settings, 'dark')
   const light = schemeOf(settings, 'light')
   scene = buildScene(seed, {
-    dark: seaOf(dark, settings.depth),
-    light: seaOf(light, settings.depth),
+    dark: seaOf(dark, settings.depth, settings.sharkTone),
+    light: seaOf(light, settings.depth, settings.sharkTone),
     size: settings.size / 100,
     speed: settings.speed / 100,
     isSharkShown: settings.isSharkShown,
     waves: settings.waves,
-    hasGlints: settings.hasGlints,
+    glints: settings.glints,
+    waveSpeed: settings.waveSpeed / 100,
     isMoving: settings.backdrop === 'moving',
   })
   drawing += 1
@@ -398,7 +399,42 @@ export const register: Register = on => {
               label="More waves"
               onPress={() => change($, now => ({ ...now, waves: Math.min(7, now.waves + 2) }), '')}
             />
-            {toggle('glints', settings.hasGlints ? 'Glints on' : 'Glints off', settings.hasGlints, now => ({ ...now, hasGlints: !now.hasGlints }))}
+          </Box>
+          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
+            <Box width={12}>
+              <Text>Wave speed</Text>
+            </Box>
+            <Button
+              key="hammerhead:wave-speed-down"
+              label="Calmer"
+              onPress={() => change($, now => ({ ...now, waveSpeed: step(now.waveSpeed, -STEP) }), '')}
+            />
+            <Box width={6} justifyContent="center">
+              <Text tabular>{`${settings.waveSpeed}%`}</Text>
+            </Box>
+            <Button
+              key="hammerhead:wave-speed-up"
+              label="Livelier"
+              onPress={() => change($, now => ({ ...now, waveSpeed: step(now.waveSpeed, STEP) }), '')}
+            />
+          </Box>
+          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
+            <Box width={12}>
+              <Text>Glints</Text>
+            </Box>
+            <Button
+              key="hammerhead:glints-down"
+              label="Fewer glints"
+              onPress={() => change($, now => ({ ...now, glints: GLINTS[Math.max(0, GLINTS.indexOf(now.glints) - 1)] ?? 0 }), '')}
+            />
+            <Box width={6} justifyContent="center">
+              <Text tabular>{String(settings.glints)}</Text>
+            </Box>
+            <Button
+              key="hammerhead:glints-up"
+              label="More glints"
+              onPress={() => change($, now => ({ ...now, glints: GLINTS[Math.min(GLINTS.length - 1, GLINTS.indexOf(now.glints) + 1)] ?? 22 }), '')}
+            />
           </Box>
           <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
             <Box width={12}>
@@ -418,6 +454,24 @@ export const register: Register = on => {
 
                 return change($, now => now, 'The shark took a new route.')
               }}
+            />
+          </Box>
+          <Box gap={1} alignItems="center" display={isSea ? 'flex' : 'none'}>
+            <Box width={12}>
+              <Text>Shark tone</Text>
+            </Box>
+            <Button
+              key="hammerhead:shark-tone-down"
+              label="Fainter"
+              onPress={() => change($, now => ({ ...now, sharkTone: Math.max(1, now.sharkTone - 1) }), '')}
+            />
+            <Box width={6} justifyContent="center">
+              <Text tabular>{String(settings.sharkTone)}</Text>
+            </Box>
+            <Button
+              key="hammerhead:shark-tone-up"
+              label="Bolder"
+              onPress={() => change($, now => ({ ...now, sharkTone: Math.min(10, now.sharkTone + 1) }), '')}
             />
           </Box>
           {isSea && stepper('size', 'Shark size', 'Smaller', 'Larger')}
