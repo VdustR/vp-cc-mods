@@ -9,7 +9,7 @@ The stock look is neutral by design. This theme gives long sessions a warmer, qu
 - **Your scheme, both modes.** Pick a scheme for dark mode and another for light mode. The theme follows the app's own appearance setting, so there is nothing to switch by hand. It starts with [Gruvbox](https://github.com/morhetz/gruvbox) Dark and [Catppuccin](https://github.com/catppuccin/catppuccin) Latte.
 - **The terminal format, nothing new to learn.** A scheme is the 20 colors of a terminal theme, in the Windows Terminal format that [iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) publishes for every scheme it collects. Paste one, or describe one in a few words and Claude writes it.
 - **One set of rules for every scheme.** The app's surfaces, its text, the water, the ribbons and the shark are all worked out from the scheme to fixed contrast targets, so the waves and the words are as clear on a pale scheme as on a black one.
-- **Motion that stays out of the way.** One shark swims a wide loop that takes a few minutes, and ribbons drift across the water. Nothing blinks, and nothing asks for attention.
+- **Motion that stays out of the way.** One shark swims a loop around the middle of the conversation that takes a few minutes, and ribbons drift across the water. Nothing blinks, and nothing asks for attention.
 
 ## What it looks like
 
