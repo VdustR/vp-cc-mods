@@ -182,23 +182,30 @@ type Part = readonly string[]
 const HEAD: Part = [
   'M152.5 0 C152.5 -8 151.8 -18 150.3 -27 C149.4 -33 148.6 -38 148.8 -43 C149.2 -47 150.5 -50 153 -53 C156 -56 157.5 -63 154 -66.5 C151.5 -69.5 146 -70.5 138 -70.5 C130 -70.5 122 -70.5 116 -70 C111 -69.5 107.5 -65 109 -60 C110 -54 121 -50 123 -44 C124 -37 116 -32 108 -30 C101 -28.6 94 -28.8 86 -29 L86 29 C94 28.8 101 28.6 108 30 C116 32 124 37 123 44 C121 50 110 54 109 60 C107.5 65 111 69.5 116 70 C122 70.5 130 70.5 138 70.5 C146 70.5 151.5 69.5 154 66.5 C157.5 63 156 56 153 53 C150.5 50 149.2 47 148.8 43 C148.6 38 149.4 33 150.3 27 C151.8 18 152.5 8 152.5 0 Z',
 ]
-/** The front of the body, as wide where it meets the head as further back, with the pectorals: broad at the base, long, pointed and swept back. */
+/**
+ * The front of the body: a wedge, deepest just behind the head, where a hammerhead carries its bulk, and tapering
+ * from there all the way to the tail.
+ */
 const BODY: Part = [
-  'M94 -28.8 C72 -29.2 48 -29.6 24 -29.8 C8 -30.5 -10 -29.5 -26 -27 L-26 27 C-10 29.5 8 30.5 24 29.8 C48 29.6 72 29.2 94 28.8 Z',
+  'M94 -28.8 C78 -32 58 -34 36 -33.5 C14 -33 -8 -31 -26 -28.5 L-26 28.5 C-8 31 14 33 36 33.5 C58 34 78 32 94 28.8 Z',
 ]
 // The pectorals are angled down from the body, so when the shark banks into a turn the inner one drops away and
 // looks shorter from above while the outer one flattens and looks longer. Each scales across the body about its
 // own root, on keyframes baked from the route's turns.
+//
+// From above a hammerhead's pectorals are delta wings, not swept leaves: a root as broad as the body is deep, a
+// leading edge that sweeps back to a point, and a trailing edge that is hollow and stands near square to the body.
+// The broad root is what makes the shark look powerful; a narrow, swept fin reads as a glider.
 const PECTORALS = [
-  { side: 'left', root: -27, d: 'M60 -25 C46 -37 18 -58 -30 -80 C-28 -64 -14 -43 12 -27 Z' },
-  { side: 'right', root: 27, d: 'M60 25 C46 37 18 58 -30 80 C-28 64 -14 43 12 27 Z' },
+  { side: 'left', root: -27, d: 'M70 -27 C58 -46 38 -76 8 -98 C12 -76 12 -50 14 -28 Z' },
+  { side: 'right', root: 27, d: 'M70 27 C58 46 38 76 8 98 C12 76 12 50 14 28 Z' },
 ] as const
-const MIDDLE: Part = ['M-6 -28.5 C-34 -27 -62 -22 -88 -16 L-88 16 C-62 22 -34 27 -6 28.5 Z']
-/** The rear of the body, narrowing to the stalk, with the small pelvic fins. */
+const MIDDLE: Part = ['M-6 -30.5 C-34 -28 -62 -22.5 -88 -16 L-88 16 C-62 22.5 -34 28 -6 30.5 Z']
+/** The rear of the body, narrowing to the stalk, with the pelvic fins: small deltas of the pectorals' cut. */
 const REAR: Part = [
   'M-70 -19.5 C-100 -14 -128 -8.5 -154 -5 L-154 5 C-128 8.5 -100 14 -70 19.5 Z',
-  'M-88 -14 C-100 -23 -114 -32 -132 -36 C-129 -26 -119 -16 -104 -10 Z',
-  'M-88 14 C-100 23 -114 32 -132 36 C-129 26 -119 16 -104 10 Z',
+  'M-84 -16 C-96 -24 -110 -33 -126 -40 C-124 -30 -120 -20 -112 -10 Z',
+  'M-84 16 C-96 24 -110 33 -126 40 C-124 30 -120 20 -112 10 Z',
 ]
 /** The stalk of the tail. */
 const STALK: Part = ['M-142 -6 C-172 -5.4 -202 -4.2 -232 -2.8 L-232 2.8 C-202 4.2 -172 5.4 -142 6 Z']
@@ -206,8 +213,9 @@ const STALK: Part = ['M-142 -6 C-172 -5.4 -202 -4.2 -232 -2.8 L-232 2.8 C-202 4.
 // one line. As the tail sweeps, the water leans the blade over, and a leaning blade shows its upper lobe to one
 // side and its lower lobe to the other. So each lobe is its own hinge on the end of the stalk, and they swing
 // opposite ways on the same beat: the fork opens as the tail sweeps and closes as the blade stands up again.
-const UPPER_LOBE: Part = ['M-220 -3.2 C-244 -5.2 -276 -7.6 -300 -6.4 C-316 -5 -330 -2 -340 0 C-330 2 -316 4.4 -300 5 C-276 5.4 -244 4.4 -220 3.2 Z']
-const LOWER_LOBE: Part = ['M-220 -3 C-234 -4.6 -250 -6 -262 -5.2 C-272 -4 -280 -1.6 -286 0 C-280 1.6 -272 3.6 -262 4.4 C-250 4.8 -234 4 -220 3 Z']
+// The upper lobe is a scythe: it runs out to a point.
+const UPPER_LOBE: Part = ['M-220 -3.2 C-250 -6.5 -296 -10 -352 -2 C-300 5.5 -250 4.8 -220 3.2 Z']
+const LOWER_LOBE: Part = ['M-220 -3 C-236 -5 -262 -6.4 -290 0 C-262 5 -236 4.2 -220 3 Z']
 
 /** The hinges, from the body back: where each turns, how far, and how late in the beat. */
 const HINGES = [
