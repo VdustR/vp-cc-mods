@@ -8,7 +8,7 @@ import type { ThemeColors } from 'claude-code'
 
 import { contrast, fromLch, luminance, mix, opacityFor, pushTo, toLch } from './color'
 import { makeColors } from './make-colors.js'
-import type { Scheme } from '../types'
+import type { Accent, Scheme } from '../types'
 
 export type Mode = 'dark' | 'light'
 
@@ -123,16 +123,28 @@ export function seaOf(scheme: Scheme, depth: number, sharkTone = 4): Sea {
   }
 }
 
-/** The app's colors for one mode, as the design system's color builder takes them. `lift` scales the surface steps. */
-function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>, depth: number): Half {
+/** What a person set that the colors depend on. */
+export type Tuning = {
+  /** The sea's depth, which moves the ground text is read on. */
+  depth: number
+  /** How far the surfaces step apart, 0 to 6, where 2 is the plugin's own. */
+  layers: number
+  accent: Accent
+}
+
+/**
+ * The app's colors for one mode, as the design system's color builder takes them. `lift` eases the surface steps
+ * for a scheme the app would not paint otherwise; it scales what `tuning.layers` asks for.
+ */
+function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>, tuning: Tuning): Half {
   const isDark = modeOf(scheme) === 'dark'
   const { background, foreground } = scheme
   const far = isDark ? '#ffffff' : '#000000'
   // The page is the background. Cards, panels and menus step away from it by a fixed, small amount: toward the
   // foreground in dark mode, toward white in light mode, where the design system wants cards lighter than the page.
-  const steps = (isDark ? [0.02, 0.04, 0.05] : [0.35, 0.7, 0.7]).map(amount => mix(background, isDark ? foreground : '#ffffff', amount * lift))
+  const steps = (isDark ? [0.02, 0.04, 0.05] : [0.35, 0.7, 0.7]).map(amount => mix(background, isDark ? foreground : '#ffffff', Math.min(1, amount * lift * (tuning.layers / 2))))
   // Words are read on the page, on cards and straight on the sea, under a ribbon too: hold them to the worst.
-  const sea = seaOf(scheme, depth)
+  const sea = seaOf(scheme, tuning.depth)
   // The last ground stands for a filled control on a menu, the lightest thing dim text sits on in the app.
   const grounds = [background, steps[2]!, sea.mid, mix(sea.mid, sea.light, sea.bandOpacity), mix(steps[2]!, foreground, 0.1)]
   const worst = (text: string): string => grounds.reduce((low, ground) => (contrast(text, ground) < contrast(text, low) ? ground : low))
@@ -155,7 +167,10 @@ function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>, depth:
   const cursor = toLch(scheme.cursorColor)
   const blue = stronger(scheme, scheme.blue, scheme.brightBlue)
   const all: Record<Role, string> = {
-    accent: scheme.accent ?? (cursor[1] > 0.08 && scheme.cursorColor !== foreground ? scheme.cursorColor : blue),
+    accent:
+      tuning.accent === 'scheme'
+        ? (scheme.accent ?? (cursor[1] > 0.08 && scheme.cursorColor !== foreground ? scheme.cursorColor : blue))
+        : stronger(scheme, scheme[tuning.accent], scheme[BRIGHT[tuning.accent]]),
     danger: stronger(scheme, scheme.red, scheme.brightRed),
     success: stronger(scheme, scheme.green, scheme.brightGreen),
     warning: stronger(scheme, scheme.yellow, scheme.brightYellow),
@@ -181,6 +196,9 @@ function halfOf(scheme: Scheme, lift: number, dropped: ReadonlySet<Role>, depth:
   }
 }
 
+/** Each of the six colors' bright twin in a scheme. */
+const BRIGHT = { red: 'brightRed', yellow: 'brightYellow', green: 'brightGreen', cyan: 'brightCyan', blue: 'brightBlue', purple: 'brightPurple' } as const
+
 const ROLES: readonly Role[] = ['accent', 'danger', 'success', 'warning', 'pro']
 
 function blocker(problems: readonly string[]): string | undefined {
@@ -192,7 +210,7 @@ function blocker(problems: readonly string[]): string | undefined {
  * under its floor, so a scheme that fails is eased until it passes: flatter surfaces first, then the one role
  * color the complaint names is left to the app's own, then all of them.
  */
-function paintable(scheme: Scheme, depth: number): Half {
+function paintable(scheme: Scheme, tuning: Tuning): Half {
   const mode = modeOf(scheme)
   const tryOne = (half: Half): string | undefined => {
     try {
@@ -203,24 +221,24 @@ function paintable(scheme: Scheme, depth: number): Half {
   }
   const dropped = new Set<Role>()
   for (const lift of [1, 0.5, 0]) {
-    const half = halfOf(scheme, lift, dropped, depth)
+    const half = halfOf(scheme, lift, dropped, tuning)
     if (tryOne(half) === undefined) return half
   }
   for (let round = 0; round < ROLES.length; round++) {
-    const half = halfOf(scheme, 0, dropped, depth)
+    const half = halfOf(scheme, 0, dropped, tuning)
     const complaint = tryOne(half)
     if (complaint === undefined) return half
     const named = ROLES.find(role => !dropped.has(role) && complaint.includes(`-${role}`))
     dropped.add(named ?? ROLES.find(role => !dropped.has(role))!)
   }
-  const bare = halfOf(scheme, 0, new Set(ROLES), depth)
+  const bare = halfOf(scheme, 0, new Set(ROLES), tuning)
   if (tryOne(bare) === undefined) return bare
 
   return { gray: { anchors: { 'surface-0': bare.gray.anchors['surface-0'], 'text-primary': bare.gray.anchors['text-primary'] } } }
 }
 
 /** The app's colors for a dark scheme and a light one. */
-export function colorsOf(dark: Scheme, light: Scheme, depth: number, isHighContrast = false): ThemeColors {
+export function colorsOf(dark: Scheme, light: Scheme, tuning: Tuning, isHighContrast = false): ThemeColors {
   const codeTheme = {
     ...(dark.codeTheme === undefined ? {} : { dark: dark.codeTheme }),
     ...(light.codeTheme === undefined ? {} : { light: light.codeTheme }),
@@ -229,14 +247,14 @@ export function colorsOf(dark: Scheme, light: Scheme, depth: number, isHighContr
   return makeColors({
     label: `${dark.name} / ${light.name}`.slice(0, 64),
     id: 'vp-cc-theme-hammerhead',
-    dark: paintable(dark, depth),
-    light: paintable(light, depth),
+    dark: paintable(dark, tuning),
+    light: paintable(light, tuning),
     ...(Object.keys(codeTheme).length === 0 ? {} : { codeTheme }),
     ...(isHighContrast ? { contrast: 'more' as const } : {}),
   }).theme
 }
 
 /** Whether the Desktop app paints these colors: for a test, and to tell a person their scheme was eased. */
-export function isPainted(dark: Scheme, light: Scheme, depth: number): boolean {
-  return blocker(makeColors({ label: 'check', dark: paintable(dark, depth), light: paintable(light, depth) }).problems) === undefined
+export function isPainted(dark: Scheme, light: Scheme, tuning: Tuning): boolean {
+  return blocker(makeColors({ label: 'check', dark: paintable(dark, tuning), light: paintable(light, tuning) }).problems) === undefined
 }

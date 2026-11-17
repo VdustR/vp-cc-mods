@@ -27,6 +27,9 @@ export type Scheme = Record<AnsiKey, string> & {
 
 export type Mode = 'dark' | 'light'
 
+/** Where the color of buttons, links and switches comes from: the scheme's own choice, or one of its six colors. */
+export type Accent = 'scheme' | 'red' | 'yellow' | 'green' | 'cyan' | 'blue' | 'purple'
+
 /** What is behind the conversation: the sea in motion, the sea at rest, or the scheme's plain background. */
 export type Backdrop = 'moving' | 'still' | 'plain'
 
@@ -54,6 +57,9 @@ export type LookSettings = {
   glints: number
   /** How far the shark stands out from the water, 1 (faint) to 10 (bold). */
   sharkTone: number
+  /** How far cards, panels and menus step away from the page, 0 (flat) to 6. The default is 2. */
+  layers: number
+  accent: Accent
   /** Stronger borders and focus rings across the app. */
   isHighContrast: boolean
   /** Schemes the person pasted or asked the model for. */

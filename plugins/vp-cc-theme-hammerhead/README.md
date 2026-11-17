@@ -49,6 +49,8 @@ Every change is drawn at once and kept for every session on the machine.
 | **Shark** | Shows or hides the shark. **New route** sends it another way. |
 | **Shark tone** | How far the shark stands out from the water, 1 (faint) to 10 (bold). The default is 4. |
 | **Shark size** and **Swim speed** | 50% to 200% of its own, in steps of 25. |
+| **Layers** | How far cards, panels and menus step away from the page, 0 (flat) to 6. The default is 2. |
+| **Accent** | The color of buttons, links and switches: the scheme's own choice, or the scheme's red, yellow, green, cyan, blue or purple. |
 | **Stronger borders** | Asks the app for stronger borders and focus rings. |
 | **Reset to defaults** | Back to Gruvbox Dark and Catppuccin Latte with the standard sea. Your own schemes are kept. |
 
