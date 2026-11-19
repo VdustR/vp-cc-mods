@@ -553,7 +553,7 @@ export const register: Register = on => {
           section(
             'shark',
             'The shark',
-            settings.isSharkShown ? `Shown, tone ${settings.sharkTone}, size ${settings.size}%, speed ${settings.speed}%.` : 'Hidden.',
+            `${settings.isSharkShown ? `Shown, tone ${settings.sharkTone}, size ${settings.size}%, speed ${settings.speed}%` : 'Hidden'}${settings.isHurried ? '; the sea hurries while Claude works' : ''}.`,
             <Box flexDirection="column" gap={1}>
               {row('Shark', [
                 pick('shark', settings.isSharkShown ? 'Shown' : 'Hidden', settings.isSharkShown, now => ({ ...now, isSharkShown: !now.isSharkShown })),
@@ -570,7 +570,7 @@ export const register: Register = on => {
               {row('Tone', stepper('shark-tone', 'Fainter', 'Bolder', String(settings.sharkTone), now => ({ ...now, sharkTone: Math.max(1, now.sharkTone - 1) }), now => ({ ...now, sharkTone: Math.min(10, now.sharkTone + 1) })))}
               {row('Size', stepper('size', 'Smaller', 'Larger', `${settings.size}%`, now => ({ ...now, size: step(now.size, -STEP) }), now => ({ ...now, size: step(now.size, STEP) })))}
               {row('Swim speed', stepper('speed', 'Slower', 'Faster', `${settings.speed}%`, now => ({ ...now, speed: step(now.speed, -STEP) }), now => ({ ...now, speed: step(now.speed, STEP) })))}
-              {row('While Claude works', [pick('hurry', settings.isHurried ? 'Swims faster' : 'Keeps its pace', settings.isHurried, now => ({ ...now, isHurried: !now.isHurried }))])}
+              {row('While Claude works', [pick('hurry', settings.isHurried ? 'The sea hurries' : 'Keeps its pace', settings.isHurried, now => ({ ...now, isHurried: !now.isHurried }))])}
               <Button
                 key="hammerhead:reset-shark"
                 label="Reset the shark"
