@@ -347,8 +347,10 @@ export const register: Register = on => {
     // The desktop app plays the moving sea on the GPU, which spares the processor redrawing an animated SVG. An
     // engine older than shaders has no Shader element, and the mobile app shows a shader's SVG alone, so both keep
     // the SVG that moves by itself.
-    const { Shader, Svg } = $.ui.resolve(e) as ReturnType<typeof $.ui.resolve> & { Shader?: unknown }
-    if (e.surface === 'desktop' && Shader !== undefined && stillLook !== undefined) {
+    const elements = $.ui.resolve(e)
+    const { Svg } = elements
+    if (e.surface === 'desktop' && 'Shader' in elements && elements.Shader !== undefined && stillLook !== undefined) {
+      const { Shader } = elements
       // Built once for each look: the same input always draws the same SVG, so the render stays pure.
       const key = `${seed}:${JSON.stringify(stillLook)}`
       if (stillFor !== key) {

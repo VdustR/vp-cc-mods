@@ -62,18 +62,18 @@ function hash2(p: Vec2): number {
 function noise(p: Vec2): number {
   const cell = floor(p)
   const f = fract(p)
-  const u = f * f * (3 - 2 * f)
+  const u = vec2(f * f * (3 - 2 * f))
   const a = hash2(cell)
-  const b = hash2(cell + vec2(1, 0))
-  const c = hash2(cell + vec2(0, 1))
-  const d = hash2(cell + vec2(1, 1))
+  const b = hash2(vec2(cell + vec2(1, 0)))
+  const c = hash2(vec2(cell + vec2(0, 1)))
+  const d = hash2(vec2(cell + vec2(1, 1)))
 
   return mix(mix(a, b, u.x), mix(c, d, u.x), u.y)
 }
 
 /** Three octaves of noise, 0 to 1. */
 function fbm(p: Vec2): number {
-  return noise(p) * 0.5 + noise(p * 2.03 + vec2(1.7, 9.2)) * 0.3 + noise(p * 4.01 + vec2(8.3, 2.8)) * 0.2
+  return noise(p) * 0.5 + noise(vec2(p * 2.03 + vec2(1.7, 9.2))) * 0.3 + noise(vec2(p * 4.01 + vec2(8.3, 2.8))) * 0.2
 }
 
 /** How many points a unit of the drawing takes on this window. */
@@ -226,7 +226,7 @@ function hinge(p: Vec2, x: number, degrees: number): Vec2 {
   const a = (degrees * PI) / 180
   const c = cos(a)
   const s = sin(a)
-  const d = p - vec2(x, 0)
+  const d = vec2(p - vec2(x, 0))
 
   return vec2(x + d.x * c - d.y * s, d.x * s + d.y * c)
 }
@@ -361,10 +361,10 @@ const body = shapes({ count: VERTICES, cover: 0.3, into: mask }, vertex => place
 // read smoothed: the click rings' light (x), the ribbons' bands (y), the drifting light (z) and the rings' shade (w).
 const flow: Buffer = buffer({ scale: 0.125, float: 16 }, p => {
   const t = swim.at(vec2(1, 0)).x
-  const q = p.point * 0.0016
-  const warp = vec2(fbm(q + vec2(0, t * 0.03)), fbm(q + vec2(5.2, 1.3) - t * 0.02))
-  const swirl = vec2(fbm(q + warp * 1.8 + vec2(1.7, 9.2) + t * 0.015), fbm(q + warp * 1.8 + vec2(8.3, 2.8) - t * 0.012))
-  const glow = fbm(q * 0.7 + swirl * 2.2 + vec2(t * 0.01, 0))
+  const q = vec2(p.point * 0.0016)
+  const warp = vec2(fbm(vec2(q + vec2(0, t * 0.03))), fbm(vec2(q + vec2(5.2, 1.3) - t * 0.02)))
+  const swirl = vec2(fbm(vec2(q + warp * 1.8 + vec2(1.7, 9.2) + t * 0.015)), fbm(vec2(q + warp * 1.8 + vec2(8.3, 2.8) - t * 0.012)))
+  const glow = fbm(vec2(q * 0.7 + swirl * 2.2 + vec2(t * 0.01, 0)))
   const light = smoothstep(0.52, 0.66, glow) * (1 - smoothstep(0.66, 0.84, glow))
 
   // The ribbons' bands are soft, so they are worked out here, on the coarse grid.
@@ -454,7 +454,7 @@ const sea = shader({
       // The water bends on a few crossing sines, each bent by another, so its ribbons wind and never repeat in
       // step. Worked here and not read from \`flow\`: a picture read at a place another read gave costs far more.
       const t = swim.at(vec2(1, 0)).x
-      const q = p.point / scale()
+      const q = vec2(p.point / scale())
       const sway = vec2(
         sin(q.y * 0.006 + t * 0.21 + sin(q.x * 0.004 - t * 0.13) * 1.3) + sin(q.x * 0.011 + t * 0.07) * 0.4,
         sin(q.x * 0.005 - t * 0.17 + sin(q.y * 0.007 + t * 0.11) * 1.1) + sin(q.y * 0.013 - t * 0.09) * 0.4,
@@ -467,8 +467,9 @@ const sea = shader({
       // Light drifting over the water, as strong as the ribbons: stronger in a deeper sea.
       let color = mix(linear, shade(linear, l, 1 + v.depth * 0.05, 1), bend.z * 0.8)
       const half = vec2(0.5 / size.x, 0.5 / size.y)
-      const shark =
-        (mask.sample(p.uv + half) + mask.sample(p.uv - half) + mask.sample(p.uv + vec2(half.x, -half.y)) + mask.sample(p.uv + vec2(-half.x, half.y))) * 0.25
+      const shark = vec4(
+        (mask.sample(p.uv + half) + mask.sample(p.uv - half) + mask.sample(p.uv + vec2(half.x, -half.y)) + mask.sample(p.uv + vec2(-half.x, half.y))) * 0.25,
+      )
       const dim = min(0.8, mix(0.35, 0.5, isDark) * (0.4 + v.depth * 0.2))
       color = mix(color, shade(linear, l, 1.5, 0), shark.x * dim)
       color = mix(color, shade(linear, l, 1.2 + v.tone * 0.3, isDark), shark.y)
