@@ -2,8 +2,8 @@
 // light cross the water over it.
 //
 // The shark is a chain of overlapping segments, each hinged on the one before: body, middle, rear, the stalk of
-// the tail, and its forked fin. Every hinge swings on the same slow beat, each a little later and a little wider
-// than the one before it, so a wave travels down the body and the tail sweeps a clear S. The head sweeps the other way, as a
+// the tail, and the two lobes of its fin. Every hinge swings on the same slow beat, each a little later and a
+// little wider than the one before it, so a wave travels down the body and the tail sweeps a clear S. The head sweeps the other way, as a
 // hammerhead's does. The route is a CSS motion path with `offset-rotate: auto`, so the shark faces where it goes,
 // and it banks into the route's turns: the inner pectoral shortens and the outer one lengthens.
 //
@@ -227,10 +227,17 @@ const REAR: Part = [
 const STALK: Part = [
   'M-152.9 22.9 L-158.2 22.6 C-169.3 16.5 -187.6 13.2 -207.3 10.7 C-231.6 7.2 -252 6.1 -266.4 7.9 L-272.8 7.5 L-272.8 -7.5 L-266.4 -7.9 C-252 -6.1 -231.6 -7.2 -207.3 -10.7 C-187.6 -13.2 -169.3 -16.5 -158.2 -22.6 L-152.9 -22.9 Z',
 ]
-// The caudal fin, seen from straight above, is a symmetric fork: two lobes that sweep out and back from a notch on
-// the axis. It is one part, so the fork swings whole on the end of the stalk and never scissors.
-const TAIL: Part = [
-  'M-260.3 8.6 L-266.4 7.9 C-281.7 8.9 -290.7 20.8 -301.4 34 C-312.9 47.3 -329.7 55.8 -351.9 60.1 C-330.1 40.5 -318.3 23.6 -312.2 10.7 C-309 6.1 -304.3 2.5 -299.6 0 C-304.3 -2.5 -309 -6.1 -312.2 -10.7 C-318.3 -23.6 -330.1 -40.5 -351.9 -60.1 C-329.7 -55.8 -312.9 -47.3 -301.4 -34 C-290.7 -20.8 -281.7 -8.9 -266.4 -7.9 L-260.3 -8.6 Z',
+// The caudal fin is an upright blade, so from straight above it is narrow: a long upper lobe that tapers to a point
+// on the axis, with a shorter lower lobe under it. As the tail sweeps, the water leans the blade over, and a
+// leaning blade shows its upper lobe to one side and its lower lobe to the other. So each lobe is its own hinge on
+// the end of the stalk, and they swing opposite ways on the same beat: the fork opens as the tail sweeps and closes
+// as the blade stands up again, when the lower lobe lies wholly under the upper one. Each lobe reaches a little way
+// into the stalk, so no seam opens where it turns.
+const UPPER_LOBE: Part = [
+  'M-252 5.8 L-266.4 7.9 C-291.4 6.8 -321.2 3.9 -351.9 0 C-321.2 -3.9 -291.4 -6.8 -266.4 -7.9 L-252 -5.8 Z',
+]
+const LOWER_LOBE: Part = [
+  'M-252 5.2 L-266.4 6.8 C-280.6 5.8 -298.2 3.4 -316.4 0 C-298.2 -3.4 -280.6 -5.8 -266.4 -6.8 L-252 -5.2 Z',
 ]
 
 const HEAD_LINES: Part = [
@@ -264,18 +271,24 @@ const REAR_LINES: Part = [
 const STALK_LINES: Part = [
   'M-158 0.9 L-158.8 0.9 L-206.8 0.7 L-254 0.4 L-266 0.3 L-266 -0.3 L-254 -0.4 L-206.8 -0.7 L-158.8 -0.9 L-158 -0.9 Z',
 ]
-const TAIL_LINES: Part = [
-  'M-270.3 4.7 L-283.6 7.5 L-293.7 15.4 L-302.2 25.4 L-309.1 33.3 L-316.8 40.3 L-324.7 45.8 L-314.3 35.4 L-306.3 25.6 L-298.2 15.4 L-290.7 8.9 L-281.6 5.4 Z',
-  'M-270.3 -4.7 L-283.6 -7.5 L-293.7 -15.4 L-302.2 -25.4 L-309.1 -33.3 L-316.8 -40.3 L-324.7 -45.8 L-314.3 -35.4 L-306.3 -25.6 L-298.2 -15.4 L-290.7 -8.9 L-281.6 -5.4 Z',
+// The spine runs on into the upper lobe. The lower lobe has no line of its own: at rest it lies under the upper
+// one, and a line drawn over every silhouette would show through.
+const UPPER_LOBE_LINES: Part = [
   'M-266 0.3 L-299.6 0 L-266 -0.3 Z',
 ]
+const LOWER_LOBE_LINES: Part = []
 
 /** The hinges, from the body back: the part and its lines, where each turns, how far, and how late in the beat. */
 const HINGES = [
   { part: MIDDLE, lines: MIDDLE_LINES, x: -22, swing: 4.5, lag: 0.14 },
   { part: REAR, lines: REAR_LINES, x: -86, swing: 6.5, lag: 0.28 },
   { part: STALK, lines: STALK_LINES, x: -158, swing: 9, lag: 0.42 },
-  { part: TAIL, lines: TAIL_LINES, x: -266, swing: 9, lag: 0.68 },
+] as const
+
+/** The two lobes of the caudal fin, each hinged where the stalk ends, swinging opposite ways. */
+const LOBES = [
+  { part: LOWER_LOBE, lines: LOWER_LOBE_LINES, x: -266, swing: -7, lag: 0.68 },
+  { part: UPPER_LOBE, lines: UPPER_LOBE_LINES, x: -266, swing: 9, lag: 0.68 },
 ] as const
 
 /** Where the pectorals bank from, between their roots, and where the head turns, on the body's axis. */
@@ -297,7 +310,7 @@ function hinge(x: number, swing: number, lag: number, beat: number, inside: stri
  */
 function shark(beat: number, lap: string, isLines: boolean): string {
   const of = (part: Part, lines: Part): string => (isLines ? paths(lines, 'line') : paths(part))
-  let chain = ''
+  let chain = LOBES.map(lobe => hinge(lobe.x, lobe.swing, lobe.lag, beat, of(lobe.part, lobe.lines))).join('')
   for (const part of [...HINGES].reverse()) {
     chain = hinge(part.x, part.swing, part.lag, beat, of(part.part, part.lines) + chain)
   }

@@ -22,10 +22,10 @@ const part = name => {
 }
 const fins = [...scene.matchAll(/ d: '([^']+)'/g)].map(match => match[1])
 const finLines = [...scene.matchAll(/ line: '([^']+)'/g)].map(match => match[1])
-// The part numbers the shader hinges on: 0 body, 1 head, 2 middle, 3 rear, 4 stalk, 5 the tail, 6 the right
-// pectoral, which mirrored is the left.
-const TRUNK = [['BODY', 0], ['HEAD', 1], ['MIDDLE', 2], ['REAR', 3], ['STALK', 4], ['TAIL', 5]]
-const PARTS = [0, 1, 2, 3, 4, 5, 6]
+// The part numbers the shader hinges on: 0 body, 1 head, 2 middle, 3 rear, 4 stalk, 5 the tail's upper lobe, 6
+// the right pectoral, which mirrored is the left, and 7 the tail's lower lobe.
+const TRUNK = [['BODY', 0], ['HEAD', 1], ['MIDDLE', 2], ['REAR', 3], ['STALK', 4], ['UPPER_LOBE', 5], ['LOWER_LOBE', 7]]
+const PARTS = [0, 1, 2, 3, 4, 5, 6, 7]
 const paths = TRUNK.flatMap(([name, id]) => part(name).map(d => [d, id])).concat([[fins[1], 6]])
 const linePaths = TRUNK.flatMap(([name, id]) => part(`${name}_LINES`).map(d => [d, id])).concat([[finLines[1], 6]])
 
@@ -151,7 +151,7 @@ function right(poly) {
 // The trunk and tail bend along the route, so they are cut into upright slices every SLICE units: a straight edge
 // longer than that would cut across the bend. The head and the pectorals are rigid and stay whole.
 const SLICE = 30
-const BENDS = new Set([0, 2, 3, 4, 5])
+const BENDS = new Set([0, 2, 3, 4, 5, 7])
 
 // Each part keeps points of its own, in part order, so a point's part is told by where its number falls.
 const points = []
@@ -208,7 +208,7 @@ const POINTS_A = table([${rows(points, 0, 256)}])
 const POINTS_B = table([${rows(points, 256, 512)}])
 const TRIS_A = table([${rows(all, 0, 256)}], 'int')
 const TRIS_B = table([${rows(all, 256, 512)}], 'int')
-/** The part a point belongs to: 0 body, 1 head, 2 middle, 3 rear, 4 stalk, 5 the tail, 6 and 7 the pectorals. */
+/** The part a point belongs to: 0 body, 1 head, 2 middle, 3 rear, 4 stalk, 5 the tail's upper lobe, 6 the pectoral, 7 the lower lobe. */
 function partOf(index: number): number {
   return ${starts.slice(1).map(start => `step(${start - 0.5}, index)`).join(' + ')}
 }
