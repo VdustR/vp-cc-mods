@@ -46,6 +46,8 @@ export type LookSettings = {
   size: number
   speed: number
   isSharkShown: boolean
+  /** Whether the shark swims faster, and the water flows faster, while Claude works on a turn. */
+  isHurried: boolean
   backdrop: Backdrop
   /** How far the water sits below the scheme's background, 1 (barely) to 10 (deep). */
   depth: number

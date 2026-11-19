@@ -89,6 +89,20 @@ Building colors:
 - For a shade of a color, move its lightness in OKLCH and keep its hue and chroma. Laying the foreground over the background at some opacity grays a warm background, since a scheme's text is rarely its background's hue, and the result looks dirty.
 - A scene is told nothing about light or dark. Carry both palettes in the SVG and switch with `@media (prefers-color-scheme: light)`, which the Desktop app honors, as it does `prefers-reduced-motion`.
 
+### GPU shaders
+
+Checked on engine 2.1.326 in the Desktop app, with `vp-cc-theme-hammerhead` (`hooks/sea.ts`). 2.1.325 has no shaders.
+
+- A `Shader` element wraps one `Svg` in a `Backdrop`: `<Shader module="./sea.ts" values={...}><Svg .../></Shader>`. The module path is a string literal in the element; in a test the mounted element's `module` reads `hooks/sea.ts`. On an engine without shaders `$.ui.resolve(e)` has no `Shader`, so check for it and draw the plain `Svg`.
+- The app shows the `Svg` alone on mobile, under Reduce Motion, and when the shader fails or runs too slowly. Make that `Svg` a finished scene, and keep it still under a shader: an animated child would cost the processor again. The two pull apart when the shader draws what moves: the hammerhead's still sea hides its shark and ribbons unless the system asks for reduced motion, since the shader draws its own over them, so a held-back shader leaves bare water.
+- A shader file imports from `claude-code/shader` alone, so data such as a mesh is written into the file (`scripts/mesh.mjs` does that for the shark). Its numbers and tables hold 16,384 bits at most: whole numbers cost about 8 bits each and numbers with a decimal about 10. A table holds 256 rows at most and needs at least one; index shared points with an `'int'` table of triangles rather than repeating them.
+- Every buffer a pass reads or draws into is listed in `passes` itself. `values` are 8 at most, and a change of one eases on screen, so step a pace into a clock kept in a one-texel `float: 32` buffer, or the shark jumps along its route.
+- `claude plugin validate` prints each pass's cost a frame on a weak and a fast GPU. Reading `scene` at a place another texture read gave cost about four times a place worked out by arithmetic (8 ms against 2.2 ms on the fast GPU, for the whole picture).
+- A shader's y points up: a pixel's `point` and a pointer's `at` count from the bottom of the window (the `ui.pointer` declaration says so: "A shader's y points up, so hand it `1 - e.y`"). A drawing laid out from the top, such as an SVG's view box, needs y turned over: read straight, the ribbons' light lay under them and the shark swam to the pointer's mirror image. `at.y = 1 - 2 * y / size.y` in `shapes`, with y from the top, and `p.uv` read straight in `picture` keep the scene and the shapes in register.
+- Moves of the pointer never reach a mod; only the shader sees them (`pointer(i)`). A mod hears a click on the bare backdrop alone, as `ui.pointer`.
+- **Pointer moves seemed to reach the shader only after the backdrop was drawn again** (seen on 2.1.326, not isolated). The shark took no notice of the pointer, and clicks were slow to ring, until a message was sent, which redraws the backdrop (`turn.start` calls `$.ui.invalidate`). Two checks would tell the causes apart: an `isInteractive` on the `Svg` under the shader, and a `$.ui.invalidate('ui.render')` a moment after `session.start`. Neither was tried.
+- A mask buffer at `scale: 1` showed stepped edges on a Retina screen; `scale: 2` with `filter: 'linear'` and four taps half a point apart smoothed them.
+
 ### Hotkeys in the band
 
 | Plugin | Hotkeys |
@@ -144,7 +158,7 @@ node scripts/check.mjs               # every plugin
 node scripts/check.mjs vp-cc-<name>  # only the plugins you changed
 ```
 
-It checks the layout rules (prefix, directory and manifest names, marketplace entries, READMEs) and the English-only rule, runs `claude plugin validate` on the marketplace and each plugin, and runs `claude plugin test` in each plugin with tests. It needs Claude Code 2.1.286 or later, the lowest version it has been run on; set `CLAUDE_BIN` to use a different `claude` executable.
+It checks the layout rules (prefix, directory and manifest names, marketplace entries, READMEs) and the English-only rule, runs `claude plugin validate` on the marketplace and each plugin, runs `claude plugin test` in each plugin with tests, and runs a plugin's own `scripts/check.mjs` when it has one, such as the hammerhead's check that its shader's shark mesh matches its SVG paths. It needs Claude Code 2.1.326 or later, the first with GPU shaders, which the hammerhead tests check; set `CLAUDE_BIN` to use a different `claude` executable.
 
 Tests mount drawings on both `terminal` and `desktop`, and stub every `$` call that reaches outside the plugin (`model.fork`, `prompt.fill`, the clock through `mock.clock`).
 

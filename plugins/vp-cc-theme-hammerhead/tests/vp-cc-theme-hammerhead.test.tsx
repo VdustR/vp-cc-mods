@@ -56,6 +56,10 @@ const backdrop = (plugin: string, scene: string) =>
 // The pane takes no props of its own; the kit's type for a Pane's props asks for more than a mount needs.
 const pane = (surface: 'terminal' | 'desktop') => ({ plugin: PLUGIN, surface, component: 'Pane', requestId: PANE, props: {} }) as never
 
+// The tests that work every shipped scheme through the color builder, or draw the pane, take about four seconds on
+// an idle machine; on a busy one, or a CI runner, they ran past the kit's default five.
+const HEAVY = { timeoutMs: 30_000 }
+
 // The module environment has timers but declares none.
 declare function setTimeout(callback: (value?: unknown) => void, milliseconds: number): unknown
 
@@ -104,6 +108,106 @@ test('the backdrop is one script-free SVG that fits the limit and holds both mod
   }
 })
 
+test('the desktop app plays the moving sea on the GPU over a still SVG, and the mobile app keeps the SVG that moves', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+
+  const desktop = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  const shader = (await desktop.find({ type: 'Shader' })) as { props: { module: string; values: Record<string, number> } } | undefined
+  expect(shader?.props.module).toBe('hooks/sea.ts')
+  // A shader file declares eight values at most, each held to its range.
+  expect(Object.keys(shader?.props.values ?? {}).sort()).toEqual(['depth', 'flow', 'kinds', 'rush', 'seed', 'size', 'speed', 'tone'])
+  // The sea hurries only while Claude works on a turn.
+  expect(shader?.props.values.rush).toBe(0)
+  expect(shader?.props.values.seed).toBeLessThan(1024)
+  const still = JSON.stringify(await desktop.drawn())
+  // Under the shader nothing moves by itself, and the SVG's shark shows only where the app shows it alone.
+  expect(still).toContain('animation: none !important')
+  expect(still).toContain('class=\\"rest\\"')
+  await desktop.unmount()
+
+  const mobile = await $.ui.mount({ plugin: PLUGIN, surface: 'mobile', ...backdrop(PLUGIN, SCENE) })
+  expect(await mobile.find({ type: 'Shader' })).toBeUndefined()
+  const moving = JSON.stringify(await mobile.drawn())
+  expect(moving).not.toContain('class=\\"rest\\"')
+  expect(moving).toContain('@keyframes swim')
+  await mobile.unmount()
+})
+
+// One value carries two choices to the shader: 1 for the shark, and twice 0, 1 or 2 for 3, 5 or 7 ribbons.
+for (const [isSharkShown, waves, kinds] of [[true, 3, 1], [false, 7, 4], [true, 7, 5], [false, 3, 0]] as const) {
+  test(`the shader hears a ${isSharkShown ? 'shown' : 'hidden'} shark and ${waves} ribbons as ${kinds}`, async ($, on) => {
+    const { store } = engine(on)
+    store.set('settings', { isSharkShown, waves })
+    await $.session.start(START)
+
+    const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+    const shader = (await ui.find({ type: 'Shader' })) as { props: { values: Record<string, number> } } | undefined
+    expect(shader?.props.values.kinds).toBe(kinds)
+    await ui.unmount()
+  })
+}
+
+test('the still sea under the shader shows its own shark and ribbons only under reduced motion', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  const still = JSON.stringify(await ui.drawn())
+  const reduced = still.slice(still.indexOf('prefers-reduced-motion: reduce'))
+  expect(still).toContain('.rest { display: none; }')
+  expect(reduced).toContain('.rest { display: inline; }')
+  await ui.unmount()
+})
+
+test('the hurry is on unless the person turned it off, and resetting the shark turns it back on', async ($, on) => {
+  const { store } = engine(on)
+  store.set('settings', { isHurried: false })
+  await $.session.start(START)
+  expect((store.get('settings') as { isHurried?: boolean } | undefined)?.isHurried).toBe(false)
+
+  const ui = await $.ui.mount(pane('desktop'))
+  await ui.press({ key: 'hammerhead:section-shark' })
+  expect(await ui.find({ type: 'Button', text: 'Keeps its pace' })).toBeDefined()
+  await ui.press({ key: 'hammerhead:reset-shark' })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  expect((store.get('settings') as { isHurried?: boolean }).isHurried).toBe(true)
+  expect(await ui.find({ type: 'Button', text: 'The sea hurries' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a new route hands the shader a new seed', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+
+  const sea = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  const before = ((await sea.find({ type: 'Shader' })) as { props: { values: Record<string, number> } } | undefined)?.props.values.seed
+  await sea.unmount()
+  const ui = await $.ui.mount(pane('desktop'))
+  await ui.press({ key: 'hammerhead:section-shark' })
+  await ui.press({ key: 'hammerhead:route' })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  await ui.unmount()
+  const after = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  const seed = ((await after.find({ type: 'Shader' })) as { props: { values: Record<string, number> } } | undefined)?.props.values.seed ?? -1
+  // A seed is one of 1024, so a new route draws the same one about once in a thousand.
+  expect(seed).not.toBe(before)
+  expect(seed).toBeGreaterThanOrEqual(0)
+  expect(seed).toBeLessThan(1024)
+  await after.unmount()
+})
+
+test('a still sea draws no shader', async ($, on) => {
+  const { store } = engine(on)
+  store.set('settings', { backdrop: 'still' })
+  await $.session.start(START)
+
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  expect(await ui.find({ type: 'Shader' })).toBeUndefined()
+  expect(await ui.find({ type: 'Svg' })).toBeDefined()
+  await ui.unmount()
+})
+
 test("another plugin's backdrop is left alone", async ($, on) => {
   engine(on)
   await $.session.start(START)
@@ -132,7 +236,7 @@ test('after /clear the next prompt sets the theme again, and later prompts do no
   expect(looks.length).toBe(2)
 })
 
-test('every shipped scheme is painted by the Desktop app and keeps its waves, its shark and its words clear', () => {
+test('every shipped scheme is painted by the Desktop app and keeps its waves, its shark and its words clear', HEAVY, () => {
   const darks = PRESETS.filter(scheme => modeOf(scheme) === 'dark')
   const lights = PRESETS.filter(scheme => modeOf(scheme) === 'light')
   expect(darks.map(scheme => scheme.name)).toContain(DEFAULTS.dark)
@@ -188,7 +292,7 @@ test('a pasted scheme is read in the terminal format, and a broken one says what
 })
 
 for (const surface of ['terminal', 'desktop'] as const) {
-  test(`the ${surface} pane chooses a scheme for each mode, keeps the choice, and draws it at once`, async ($, on) => {
+  test(`the ${surface} pane chooses a scheme for each mode, keeps the choice, and draws it at once`, HEAVY, async ($, on) => {
     const { looks, store } = engine(on)
     await $.session.start({ ...START, surface })
     const ui = await $.ui.mount(pane(surface))
@@ -271,7 +375,7 @@ const DIM = JSON.stringify({
 // Also published there. Its background is a mid teal: too light for the app's dark mode and too dark for its light.
 const MIDTONE = JSON.stringify({ ...(JSON.parse(DIM) as object), name: 'Agave Dusk', background: '#145654', foreground: '#fff0d8', cursorColor: '#f6bd59', selectionBackground: '#347371' })
 
-test('a scheme the app would refuse is eased until it is painted, and one that cannot be is told apart', () => {
+test('a scheme the app would refuse is eased until it is painted, and one that cannot be is told apart', HEAVY, () => {
   const tuning = { depth: 3, layers: 2, accent: 'scheme', isCodeThemed: true } as const
   const light = PRESETS.find(scheme => scheme.name === DEFAULTS.light)!
   for (const scheme of PRESETS) expect(easingOf(scheme, tuning)).toEqual({ left: [], isFirmer: false, isPainted: true })
@@ -288,7 +392,7 @@ test('a scheme the app would refuse is eased until it is painted, and one that c
   expect(typeof midtone === 'object' && easingOf(midtone, tuning).isPainted).toBe(false)
 })
 
-test('a change that leaves the sea alone keeps its name, a press at a limit draws nothing, and changes keep their order', async ($, on) => {
+test('a change that leaves the sea alone keeps its name, a press at a limit draws nothing, and changes keep their order', HEAVY, async ($, on) => {
   const { looks, store } = engine(on)
   await $.session.start(START)
   const ui = await $.ui.mount(pane('desktop'))

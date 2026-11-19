@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Runs every automated check this repository requires before a pull request:
 // marketplace and plugin layout rules, the English-only rule for tracked files, `claude plugin validate` on the
-// marketplace and each plugin, and `claude plugin test` in each plugin that
-// has tests. CI runs the same script.
+// marketplace and each plugin, `claude plugin test` in each plugin that
+// has tests, and a plugin's own scripts/check.mjs when it has one. CI runs the same script.
 //
 // Usage: node scripts/check.mjs [plugin-name ...]
 //   With no names, every plugin under plugins/ is checked.
@@ -12,8 +12,8 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-// The lowest Claude Code version these checks have been run on.
-const MIN_VERSION = [2, 1, 286]
+// The lowest Claude Code version these checks pass on: vp-cc-theme-hammerhead tests its GPU sea, which needs 2.1.326.
+const MIN_VERSION = [2, 1, 326]
 const PREFIX = 'vp-cc-'
 
 const root = resolve(import.meta.dirname, '..')
@@ -129,6 +129,15 @@ for (const name of selected) {
   if (!allPlugins.includes(name)) fail(`unknown plugin ${name}`)
 }
 const plugins = selected.length > 0 ? selected.filter(name => allPlugins.includes(name)) : allPlugins
+
+// A plugin's own checks, such as a generated file that must match its source.
+for (const name of plugins) {
+  const script = join(root, 'plugins', name, 'scripts', 'check.mjs')
+  if (!existsSync(script)) continue
+  console.log(`\n▶ own checks ${name}`)
+  const result = spawnSync(process.execPath, [script], { cwd: join(root, 'plugins', name), stdio: 'inherit' })
+  if (result.status !== 0) fail(`own checks ${name}: exited with ${result.status}`)
+}
 
 if (checkClaudeVersion()) {
   run('validate marketplace', ['plugin', 'validate', '.'], root)
