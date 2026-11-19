@@ -104,6 +104,9 @@ test('the backdrop is one script-free SVG that fits the limit and holds both mod
     expect(tree).toContain('prefers-reduced-motion: reduce')
     expect(tree).not.toContain('<script')
     expect(tree).toContain('hammerhead')
+    // The shark carries its line art, in a color of its own.
+    expect(tree).toContain('class=\\"line\\"')
+    expect(tree).toContain('--line: #')
     await ui.unmount()
   }
 })
@@ -266,6 +269,8 @@ test('every shipped scheme is painted by the Desktop app and keeps its waves, it
       expect(contrast(crest, sea.mid)).toBeGreaterThan(1 + (depthContrast(depth) - 1) * 0.85)
       // Even the faintest shark stands clear of the water.
       expect(contrast(shark, sea.mid)).toBeGreaterThan(1.4)
+      // Its line art stands further from the shark than the water does, so the lines read on it.
+      expect(contrast(sea.line, shark)).toBeGreaterThan(contrast(shark, sea.mid))
       // The ribbons are the lighter of the two, in either mode.
       expect(contrast(sea.light, '#000000')).toBeGreaterThan(contrast(sea.mid, '#000000'))
     }

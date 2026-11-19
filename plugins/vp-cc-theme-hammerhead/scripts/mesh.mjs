@@ -1,6 +1,9 @@
 // Writes the shark's triangles into hooks/sea.ts from the paths in hooks/scene.ts, so the GPU sea and the SVG
 // sea draw one shark. A shader reads nothing but its own file, so the mesh is written into it: the points, as
-// [x, y] rows, and the triangles, as rows of three point numbers, each in tables of 256 rows at most.
+// [x, y] rows, and the triangles, as rows of three point numbers, each in tables of 256 rows at most. The
+// silhouette's triangles come first and the line art's after them, so the shader draws each in its own pass.
+// The shark is symmetric, so only its right half (y >= 0) is kept, and the shader draws it twice, once mirrored:
+// the whole shark would not fit in the shader's 16,384 bits of numbers.
 //
 //   node scripts/mesh.mjs           writes the mesh; run it after changing a path
 //   node scripts/mesh.mjs --check   fails when hooks/sea.ts holds a mesh other than the paths give
@@ -17,12 +20,14 @@ const part = name => {
 
   return [...found[1].matchAll(/'([^']+)'/g)].map(match => match[1])
 }
-const fins = [...scene.matchAll(/d: '([^']+)'/g)].map(match => match[1])
-// The part numbers the shader hinges on: 0 body, 1 head, 2 middle, 3 rear, 4 stalk, 5 and 6 the tail's upper and
-// lower lobes, 7 and 8 the left and right pectorals.
-const paths = [['BODY', 0], ['HEAD', 1], ['MIDDLE', 2], ['REAR', 3], ['STALK', 4], ['UPPER_LOBE', 5], ['LOWER_LOBE', 6]]
-  .flatMap(([name, id]) => part(name).map(d => [d, id]))
-  .concat([[fins[0], 7], [fins[1], 8]])
+const fins = [...scene.matchAll(/ d: '([^']+)'/g)].map(match => match[1])
+const finLines = [...scene.matchAll(/ line: '([^']+)'/g)].map(match => match[1])
+// The part numbers the shader hinges on: 0 body, 1 head, 2 middle, 3 rear, 4 stalk, 5 the tail, 6 the right
+// pectoral, which mirrored is the left.
+const TRUNK = [['BODY', 0], ['HEAD', 1], ['MIDDLE', 2], ['REAR', 3], ['STALK', 4], ['TAIL', 5]]
+const PARTS = [0, 1, 2, 3, 4, 5, 6]
+const paths = TRUNK.flatMap(([name, id]) => part(name).map(d => [d, id])).concat([[fins[1], 6]])
+const linePaths = TRUNK.flatMap(([name, id]) => part(`${name}_LINES`).map(d => [d, id])).concat([[finLines[1], 6]])
 
 /** The outline of one path (M, L, C and Z only), each curve cut into pieces no longer than PIECE. */
 function outline(d) {
@@ -126,32 +131,56 @@ function slab(poly, from, to) {
   })
 }
 
+/** The polygon's right half, y >= 0 (Sutherland-Hodgman against the axis), with repeated points dropped. */
+function right(poly) {
+  const out = []
+  for (let k = 0; k < poly.length; k++) {
+    const a = poly[k]
+    const b = poly[(k + 1) % poly.length]
+    if (a[1] >= 0) out.push(a)
+    if ((a[1] >= 0) !== (b[1] >= 0)) out.push([a[0] + ((b[0] - a[0]) * -a[1]) / (b[1] - a[1]), 0])
+  }
+
+  return out.filter((q, k) => {
+    const next = out[(k + 1) % out.length]
+
+    return Math.hypot(q[0] - next[0], q[1] - next[1]) > 1e-6
+  })
+}
+
 // The trunk and tail bend along the route, so they are cut into upright slices every SLICE units: a straight edge
 // longer than that would cut across the bend. The head and the pectorals are rigid and stay whole.
-const SLICE = 18
-const BENDS = new Set([0, 2, 3, 4, 5, 6])
+const SLICE = 30
+const BENDS = new Set([0, 2, 3, 4, 5])
 
 // Each part keeps points of its own, in part order, so a point's part is told by where its number falls.
 const points = []
 const tris = []
+const lineTris = []
 const starts = []
-for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+for (const id of PARTS) {
   starts.push(points.length)
   const seen = new Map()
-  const index = ([x, y]) => {
-    const key = `${Math.round(x)},${Math.round(y)}`
+  // A point is kept to a whole unit, which costs the fewest bits; line art, one to three units wide, is kept to a
+  // tenth, or rounding thins its lines to nothing and turns their edges jagged.
+  const index = ([x, y], isLine) => {
+    const keep = n => (isLine ? Math.round(n * 10) / 10 : Math.round(n))
+    const key = `${keep(x)},${keep(y)}`
     if (!seen.has(key)) {
       seen.set(key, points.length)
-      points.push([Math.round(x), Math.round(y)])
+      points.push([keep(x), keep(y)])
     }
 
     return seen.get(key)
   }
-  for (const [d] of paths.filter(([, of]) => of === id)) {
-    const poly = outline(d)
+  for (const [d, , into] of [...paths.map(([d, of]) => [d, of, tris]), ...linePaths.map(([d, of]) => [d, of, lineTris])].filter(([, of]) => of === id)) {
+    const poly = right(outline(d))
+    if (poly.length < 3) continue
     const xs = poly.map(q => q[0])
     const pieces = []
-    if (BENDS.has(id)) {
+    // Line art is not sliced: it is thin, so its triangles are many and small already, and each of its points
+    // rides the spine on its own, so the lines bend with the body.
+    if (BENDS.has(id) && into === tris) {
       for (let x = Math.floor(Math.min(...xs) / SLICE) * SLICE; x < Math.max(...xs); x += SLICE) {
         const piece = slab(poly, x, x + SLICE)
         if (piece.length >= 3 && Math.abs(area(piece)) > 0.5) pieces.push(piece)
@@ -163,21 +192,23 @@ for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
     const lost = Math.abs(Math.abs(area(poly)) - cut.reduce((sum, t) => sum + Math.abs(area(t)), 0))
     if (lost > 2) throw new Error(`Part ${id} lost ${lost.toFixed(0)} of its area in triangles`)
     for (const triangle of cut) {
-      const corners = triangle.map(index)
-      if (new Set(corners).size === 3) tris.push(corners)
+      const corners = triangle.map(corner => index(corner, into === lineTris))
+      if (new Set(corners).size === 3) into.push(corners)
     }
   }
 }
-if (points.length > 512 || tris.length > 512) throw new Error(`${points.length} points and ${tris.length} triangles do not fit in two tables each`)
+const all = [...tris, ...lineTris]
+if (points.length > 512 || all.length > 512) throw new Error(`${points.length} points and ${all.length} triangles do not fit in two tables each`)
 // A table needs a row, so an unused second table holds one row of zeros.
 const rows = (list, from, to) => list.slice(from, to).map(row => `[${row.join(', ')}]`).join(', ') || `[${list[0].map(() => 0).join(', ')}]`
 const mesh = `// mesh:start (written by scripts/mesh.mjs)
 const VERTICES = ${tris.length * 3}
+const LINE_VERTICES = ${lineTris.length * 3}
 const POINTS_A = table([${rows(points, 0, 256)}])
 const POINTS_B = table([${rows(points, 256, 512)}])
-const TRIS_A = table([${rows(tris, 0, 256)}], 'int')
-const TRIS_B = table([${rows(tris, 256, 512)}], 'int')
-/** The part a point belongs to: 0 body, 1 head, 2 middle, 3 rear, 4 stalk, 5 and 6 the tail's lobes, 7 and 8 the pectorals. */
+const TRIS_A = table([${rows(all, 0, 256)}], 'int')
+const TRIS_B = table([${rows(all, 256, 512)}], 'int')
+/** The part a point belongs to: 0 body, 1 head, 2 middle, 3 rear, 4 stalk, 5 the tail, 6 and 7 the pectorals. */
 function partOf(index: number): number {
   return ${starts.slice(1).map(start => `step(${start - 0.5}, index)`).join(' + ')}
 }
@@ -191,8 +222,8 @@ if (process.argv.includes('--check')) {
     console.error('hooks/sea.ts holds a shark mesh other than the paths in hooks/scene.ts give: run node scripts/mesh.mjs')
     process.exit(1)
   }
-  console.log(`The shark mesh matches hooks/scene.ts: ${points.length} points, ${tris.length} triangles`)
+  console.log(`The shark mesh matches hooks/scene.ts: ${points.length} points, ${tris.length} + ${lineTris.length} triangles`)
 } else {
   writeFileSync(target, written)
-  console.log(`${points.length} points, ${tris.length} triangles`)
+  console.log(`${points.length} points, ${tris.length} + ${lineTris.length} triangles`)
 }
