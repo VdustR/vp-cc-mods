@@ -56,6 +56,10 @@ const backdrop = (plugin: string, scene: string) =>
 // The pane takes no props of its own; the kit's type for a Pane's props asks for more than a mount needs.
 const pane = (surface: 'terminal' | 'desktop') => ({ plugin: PLUGIN, surface, component: 'Pane', requestId: PANE, props: {} }) as never
 
+// The tests that work every shipped scheme through the color builder, or draw the pane, take about four seconds on
+// an idle machine; on a busy one, or a CI runner, they ran past the kit's default five.
+const HEAVY = { timeoutMs: 30_000 }
+
 // The module environment has timers but declares none.
 declare function setTimeout(callback: (value?: unknown) => void, milliseconds: number): unknown
 
@@ -169,7 +173,7 @@ test('after /clear the next prompt sets the theme again, and later prompts do no
   expect(looks.length).toBe(2)
 })
 
-test('every shipped scheme is painted by the Desktop app and keeps its waves, its shark and its words clear', () => {
+test('every shipped scheme is painted by the Desktop app and keeps its waves, its shark and its words clear', HEAVY, () => {
   const darks = PRESETS.filter(scheme => modeOf(scheme) === 'dark')
   const lights = PRESETS.filter(scheme => modeOf(scheme) === 'light')
   expect(darks.map(scheme => scheme.name)).toContain(DEFAULTS.dark)
@@ -225,7 +229,7 @@ test('a pasted scheme is read in the terminal format, and a broken one says what
 })
 
 for (const surface of ['terminal', 'desktop'] as const) {
-  test(`the ${surface} pane chooses a scheme for each mode, keeps the choice, and draws it at once`, async ($, on) => {
+  test(`the ${surface} pane chooses a scheme for each mode, keeps the choice, and draws it at once`, HEAVY, async ($, on) => {
     const { looks, store } = engine(on)
     await $.session.start({ ...START, surface })
     const ui = await $.ui.mount(pane(surface))
@@ -308,7 +312,7 @@ const DIM = JSON.stringify({
 // Also published there. Its background is a mid teal: too light for the app's dark mode and too dark for its light.
 const MIDTONE = JSON.stringify({ ...(JSON.parse(DIM) as object), name: 'Agave Dusk', background: '#145654', foreground: '#fff0d8', cursorColor: '#f6bd59', selectionBackground: '#347371' })
 
-test('a scheme the app would refuse is eased until it is painted, and one that cannot be is told apart', () => {
+test('a scheme the app would refuse is eased until it is painted, and one that cannot be is told apart', HEAVY, () => {
   const tuning = { depth: 3, layers: 2, accent: 'scheme', isCodeThemed: true } as const
   const light = PRESETS.find(scheme => scheme.name === DEFAULTS.light)!
   for (const scheme of PRESETS) expect(easingOf(scheme, tuning)).toEqual({ left: [], isFirmer: false, isPainted: true })
@@ -325,7 +329,7 @@ test('a scheme the app would refuse is eased until it is painted, and one that c
   expect(typeof midtone === 'object' && easingOf(midtone, tuning).isPainted).toBe(false)
 })
 
-test('a change that leaves the sea alone keeps its name, a press at a limit draws nothing, and changes keep their order', async ($, on) => {
+test('a change that leaves the sea alone keeps its name, a press at a limit draws nothing, and changes keep their order', HEAVY, async ($, on) => {
   const { looks, store } = engine(on)
   await $.session.start(START)
   const ui = await $.ui.mount(pane('desktop'))
