@@ -12,8 +12,8 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-// The lowest Claude Code version these checks have been run on.
-const MIN_VERSION = [2, 1, 286]
+// The lowest Claude Code version these checks pass on: vp-cc-theme-hammerhead tests its GPU sea, which needs 2.1.326.
+const MIN_VERSION = [2, 1, 326]
 const PREFIX = 'vp-cc-'
 
 const root = resolve(import.meta.dirname, '..')

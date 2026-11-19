@@ -35,6 +35,11 @@ export type SceneLook = {
   waveSpeed: number
   /** False rests everything in place, as reduced motion does. */
   isMoving: boolean
+  /**
+   * True draws the still sea a shader plays over (sea.ts): the shark and the ribbons are the shader's to draw, so
+   * the SVG shows its own only where the app shows the SVG alone because the system asks for reduced motion.
+   */
+  isUnderShader?: boolean
 }
 
 function palette(sea: Sea): string {
@@ -379,9 +384,11 @@ svg {
 @keyframes twinkle { 0%, 100% { opacity: 0; } 50% { opacity: var(--speck-o); } }
 
 ${look.isMoving ? '' : '* { animation: none !important; }\n.speck { opacity: calc(var(--speck-o) * .5); }'}
+.rest { display: none; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; }
   .speck { opacity: calc(var(--speck-o) * .5); }
+  .rest { display: inline; }
 }
 </style>
 <defs>
@@ -407,8 +414,8 @@ ${look.isMoving ? '' : '* { animation: none !important; }\n.speck { opacity: cal
 </defs>
 <rect class="sea" x="-100" y="-100" width="1800" height="1200"/>
 <rect class="glow" x="-100" y="-100" width="1800" height="1200"/>
-${look.isSharkShown ? `${mover('shadow', SHADOW[0] * size, SHADOW[1] * size)}\n${mover('silhouette', 0, 0)}` : ''}
-${ribbons}
+${look.isSharkShown ? `<g class="${look.isUnderShader ? 'rest' : 'shark'}">${mover('shadow', SHADOW[0] * size, SHADOW[1] * size)}\n${mover('silhouette', 0, 0)}</g>` : ''}
+${look.isUnderShader ? `<g class="rest">${ribbons}</g>` : ribbons}
 ${specks}
 </svg>`
 }

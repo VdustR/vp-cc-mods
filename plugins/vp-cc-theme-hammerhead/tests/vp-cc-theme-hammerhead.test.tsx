@@ -104,6 +104,43 @@ test('the backdrop is one script-free SVG that fits the limit and holds both mod
   }
 })
 
+test('the desktop app plays the moving sea on the GPU over a still SVG, and the mobile app keeps the SVG that moves', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+
+  const desktop = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  const shader = (await desktop.find({ type: 'Shader' })) as { props: { module: string; values: Record<string, number> } } | undefined
+  expect(shader?.props.module).toBe('hooks/sea.ts')
+  // A shader file declares eight values at most, each held to its range.
+  expect(Object.keys(shader?.props.values ?? {}).sort()).toEqual(['depth', 'flow', 'kinds', 'rush', 'seed', 'size', 'speed', 'tone'])
+  // The sea hurries only while Claude works on a turn.
+  expect(shader?.props.values.rush).toBe(0)
+  expect(shader?.props.values.seed).toBeLessThan(1024)
+  const still = JSON.stringify(await desktop.drawn())
+  // Under the shader nothing moves by itself, and the SVG's shark shows only where the app shows it alone.
+  expect(still).toContain('animation: none !important')
+  expect(still).toContain('class=\\"rest\\"')
+  await desktop.unmount()
+
+  const mobile = await $.ui.mount({ plugin: PLUGIN, surface: 'mobile', ...backdrop(PLUGIN, SCENE) })
+  expect(await mobile.find({ type: 'Shader' })).toBeUndefined()
+  const moving = JSON.stringify(await mobile.drawn())
+  expect(moving).not.toContain('class=\\"rest\\"')
+  expect(moving).toContain('@keyframes swim')
+  await mobile.unmount()
+})
+
+test('a still sea draws no shader', async ($, on) => {
+  const { store } = engine(on)
+  store.set('settings', { backdrop: 'still' })
+  await $.session.start(START)
+
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  expect(await ui.find({ type: 'Shader' })).toBeUndefined()
+  expect(await ui.find({ type: 'Svg' })).toBeDefined()
+  await ui.unmount()
+})
+
 test("another plugin's backdrop is left alone", async ($, on) => {
   engine(on)
   await $.session.start(START)

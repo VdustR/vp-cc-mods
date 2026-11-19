@@ -28,6 +28,17 @@ let seed = Math.floor(Math.random() * 2147483646)
 // The sea as last drawn: built when the look is set, not in the render hook, which only hands it over.
 let scene = ''
 
+// The moving sea on the GPU, where the surface plays shaders: the still sea for the shader to read, and the numbers
+// it plays with. Empty when the sea does not move.
+let stillScene = ''
+// How to build the still sea, kept until the desktop app asks for it: most surfaces never do.
+let stillLook: Parameters<typeof buildScene>[1] | undefined
+let stillFor = ''
+let shaderValues: Record<string, number> = {}
+// Whether Claude is working on a turn in this session, and whether the sea should hurry while it does.
+let isWorking = false
+let isHurried = true
+
 // A surface draws a backdrop again only when the look names a scene it has not drawn, so each drawing gets a name
 // of its own: the scene id, this load's seed and a count. Without the count a new scheme recolors the app and
 // leaves the old sea behind it; without the seed a reload starts the count again and meets names already drawn.
@@ -70,6 +81,32 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
     waveSpeed: settings.waveSpeed / 100,
     isMoving: settings.backdrop === 'moving',
   })
+  stillLook = undefined
+  if (settings.backdrop === 'moving') {
+    stillLook = {
+      dark: seaOf(dark, settings.depth, settings.sharkTone),
+      light: seaOf(light, settings.depth, settings.sharkTone),
+      size: settings.size / 100,
+      speed: settings.speed / 100,
+      isSharkShown: settings.isSharkShown,
+      waves: settings.waves,
+      glints: settings.glints,
+      waveSpeed: settings.waveSpeed / 100,
+      isMoving: false,
+      isUnderShader: true,
+    }
+    shaderValues = {
+      seed: seed % 1024,
+      size: settings.size / 100,
+      speed: settings.speed / 100,
+      flow: settings.waveSpeed / 100,
+      tone: settings.sharkTone,
+      depth: settings.depth,
+      // Two choices in one value, as sea.ts reads them: the shark shown, and 3, 5 or 7 ribbons.
+      kinds: (settings.isSharkShown ? 1 : 0) + 2 * Math.max(0, Math.min(2, (settings.waves - 3) / 2)),
+    }
+  }
+  isHurried = settings.isHurried
   const isPlain = settings.backdrop === 'plain'
   const glass = glassOf(settings)
   const drawAs = isPlain ? 'plain' : JSON.stringify([scene, glass])
@@ -281,14 +318,51 @@ export const register: Register = on => {
     return isPlaced ? {} : { text: 'The theme settings open in a pane, and nothing here can show one.' }
   })
 
+  // While Claude works on a turn the GPU sea hurries: only a value changes, so the shader eases into it and the
+  // shark swims on from where it is. Subagents' turns are left out: the main loop's turn spans them.
+  on('turn.start', ($, e, next) => {
+    if (e.agentId === undefined && !isWorking) {
+      isWorking = true
+      $.ui.invalidate('ui.render')
+    }
+
+    return next(e)
+  })
+
+  on('turn.complete', ($, e, next) => {
+    if ((e as { agentId?: string }).agentId === undefined && isWorking) {
+      isWorking = false
+      $.ui.invalidate('ui.render')
+    }
+
+    return next(e)
+  })
+
   on('ui.render', { component: 'Backdrop' }, ($, e, next) => {
     // Every plugin's hook hears every backdrop: leave another plugin's scene alone.
     if ((e.surface !== 'desktop' && e.surface !== 'mobile') || e.props.plugin !== PLUGIN || !e.props.scene.startsWith(SCENE_ID) || scene === '') {
       return next(e)
     }
-    const { Svg } = $.ui.resolve(e)
+    const alt = 'A hammerhead silhouette cruising a calm sea, seen from above, under slow ribbons'
+    // The desktop app plays the moving sea on the GPU, which spares the processor redrawing an animated SVG. An
+    // engine older than shaders has no Shader element, and the mobile app shows a shader's SVG alone, so both keep
+    // the SVG that moves by itself.
+    const { Shader, Svg } = $.ui.resolve(e) as ReturnType<typeof $.ui.resolve> & { Shader?: unknown }
+    if (e.surface === 'desktop' && Shader !== undefined && stillLook !== undefined) {
+      // Built once for each look: the same input always draws the same SVG, so the render stays pure.
+      const key = `${seed}:${JSON.stringify(stillLook)}`
+      if (stillFor !== key) {
+        stillScene = buildScene(seed, stillLook)
+        stillFor = key
+      }
+      return (
+        <Shader module="./sea.ts" values={{ ...shaderValues, rush: isWorking && isHurried ? 1 : 0 }}>
+          <Svg source={stillScene} alt={alt} />
+        </Shader>
+      )
+    }
 
-    return <Svg source={scene} alt="A hammerhead silhouette cruising a calm sea, seen from above, under slow ribbons" />
+    return <Svg source={scene} alt={alt} />
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -499,13 +573,14 @@ export const register: Register = on => {
               {row('Tone', stepper('shark-tone', 'Fainter', 'Bolder', String(settings.sharkTone), now => ({ ...now, sharkTone: Math.max(1, now.sharkTone - 1) }), now => ({ ...now, sharkTone: Math.min(10, now.sharkTone + 1) })))}
               {row('Size', stepper('size', 'Smaller', 'Larger', `${settings.size}%`, now => ({ ...now, size: step(now.size, -STEP) }), now => ({ ...now, size: step(now.size, STEP) })))}
               {row('Swim speed', stepper('speed', 'Slower', 'Faster', `${settings.speed}%`, now => ({ ...now, speed: step(now.speed, -STEP) }), now => ({ ...now, speed: step(now.speed, STEP) })))}
+              {row('While Claude works', [pick('hurry', settings.isHurried ? 'Swims faster' : 'Keeps its pace', settings.isHurried, now => ({ ...now, isHurried: !now.isHurried }))])}
               <Button
                 key="hammerhead:reset-shark"
                 label="Reset the shark"
                 plain
                 dimColor
                 onPress={() =>
-                  change($, now => ({ ...now, isSharkShown: DEFAULT_LOOK.isSharkShown, sharkTone: DEFAULT_LOOK.sharkTone, size: DEFAULT_LOOK.size, speed: DEFAULT_LOOK.speed }), 'The shark is back to its defaults.')
+                  change($, now => ({ ...now, isSharkShown: DEFAULT_LOOK.isSharkShown, sharkTone: DEFAULT_LOOK.sharkTone, size: DEFAULT_LOOK.size, speed: DEFAULT_LOOK.speed, isHurried: DEFAULT_LOOK.isHurried }), 'The shark is back to its defaults.')
                 }
               />
             </Box>,
