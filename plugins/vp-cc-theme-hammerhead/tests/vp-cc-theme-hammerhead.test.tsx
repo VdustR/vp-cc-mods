@@ -134,6 +134,69 @@ test('the desktop app plays the moving sea on the GPU over a still SVG, and the 
   await mobile.unmount()
 })
 
+// One value carries two choices to the shader: 1 for the shark, and twice 0, 1 or 2 for 3, 5 or 7 ribbons.
+for (const [isSharkShown, waves, kinds] of [[true, 3, 1], [false, 7, 4], [true, 7, 5], [false, 3, 0]] as const) {
+  test(`the shader hears a ${isSharkShown ? 'shown' : 'hidden'} shark and ${waves} ribbons as ${kinds}`, async ($, on) => {
+    const { store } = engine(on)
+    store.set('settings', { isSharkShown, waves })
+    await $.session.start(START)
+
+    const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+    const shader = (await ui.find({ type: 'Shader' })) as { props: { values: Record<string, number> } } | undefined
+    expect(shader?.props.values.kinds).toBe(kinds)
+    await ui.unmount()
+  })
+}
+
+test('the still sea under the shader shows its own shark and ribbons only under reduced motion', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  const still = JSON.stringify(await ui.drawn())
+  const reduced = still.slice(still.indexOf('prefers-reduced-motion: reduce'))
+  expect(still).toContain('.rest { display: none; }')
+  expect(reduced).toContain('.rest { display: inline; }')
+  await ui.unmount()
+})
+
+test('the hurry is on unless the person turned it off, and resetting the shark turns it back on', async ($, on) => {
+  const { store } = engine(on)
+  store.set('settings', { isHurried: false })
+  await $.session.start(START)
+  expect((store.get('settings') as { isHurried?: boolean } | undefined)?.isHurried).toBe(false)
+
+  const ui = await $.ui.mount(pane('desktop'))
+  await ui.press({ key: 'hammerhead:section-shark' })
+  expect(await ui.find({ type: 'Button', text: 'Keeps its pace' })).toBeDefined()
+  await ui.press({ key: 'hammerhead:reset-shark' })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  expect((store.get('settings') as { isHurried?: boolean }).isHurried).toBe(true)
+  expect(await ui.find({ type: 'Button', text: 'The sea hurries' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a new route hands the shader a new seed', async ($, on) => {
+  engine(on)
+  await $.session.start(START)
+
+  const sea = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  const before = ((await sea.find({ type: 'Shader' })) as { props: { values: Record<string, number> } } | undefined)?.props.values.seed
+  await sea.unmount()
+  const ui = await $.ui.mount(pane('desktop'))
+  await ui.press({ key: 'hammerhead:section-shark' })
+  await ui.press({ key: 'hammerhead:route' })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  await ui.unmount()
+  const after = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...backdrop(PLUGIN, SCENE) })
+  const seed = ((await after.find({ type: 'Shader' })) as { props: { values: Record<string, number> } } | undefined)?.props.values.seed ?? -1
+  // A seed is one of 1024, so a new route draws the same one about once in a thousand.
+  expect(seed).not.toBe(before)
+  expect(seed).toBeGreaterThanOrEqual(0)
+  expect(seed).toBeLessThan(1024)
+  await after.unmount()
+})
+
 test('a still sea draws no shader', async ($, on) => {
   const { store } = engine(on)
   store.set('settings', { backdrop: 'still' })
