@@ -157,7 +157,7 @@ node scripts/check.mjs               # every plugin
 node scripts/check.mjs vp-cc-<name>  # only the plugins you changed
 ```
 
-It checks the layout rules (prefix, directory and manifest names, marketplace entries, READMEs) and the English-only rule, runs `claude plugin validate` on the marketplace and each plugin, and runs `claude plugin test` in each plugin with tests. It needs Claude Code 2.1.326 or later, the first with GPU shaders, which the hammerhead tests check; set `CLAUDE_BIN` to use a different `claude` executable.
+It checks the layout rules (prefix, directory and manifest names, marketplace entries, READMEs) and the English-only rule, runs `claude plugin validate` on the marketplace and each plugin, runs `claude plugin test` in each plugin with tests, and runs a plugin's own `scripts/check.mjs` when it has one, such as the hammerhead's check that its shader's shark mesh matches its SVG paths. It needs Claude Code 2.1.326 or later, the first with GPU shaders, which the hammerhead tests check; set `CLAUDE_BIN` to use a different `claude` executable.
 
 Tests mount drawings on both `terminal` and `desktop`, and stub every `$` call that reaches outside the plugin (`model.fork`, `prompt.fill`, the clock through `mock.clock`).
 

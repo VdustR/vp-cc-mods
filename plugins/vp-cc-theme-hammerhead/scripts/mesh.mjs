@@ -1,6 +1,9 @@
 // Writes the shark's triangles into hooks/sea.ts from the paths in hooks/scene.ts, so the GPU sea and the SVG
 // sea draw one shark. A shader reads nothing but its own file, so the mesh is written into it: the points, as
-// [x, y] rows, and the triangles, as rows of three point numbers, each in tables of 256 rows at most. Run it after changing a path: node scripts/mesh.mjs
+// [x, y] rows, and the triangles, as rows of three point numbers, each in tables of 256 rows at most.
+//
+//   node scripts/mesh.mjs           writes the mesh; run it after changing a path
+//   node scripts/mesh.mjs --check   fails when hooks/sea.ts holds a mesh other than the paths give
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const here = new URL('../hooks/', import.meta.url)
@@ -182,6 +185,14 @@ function partOf(index: number): number {
 const target = new URL('sea.ts', here)
 const sea = readFileSync(target, 'utf8')
 const written = sea.replace(/\/\/ mesh:start[\s\S]*?\/\/ mesh:end/, mesh)
-if (written === sea && !sea.includes(mesh)) throw new Error('hooks/sea.ts has no mesh:start and mesh:end markers')
-writeFileSync(target, written)
-console.log(`${points.length} points, ${tris.length} triangles`)
+if (!/\/\/ mesh:start[\s\S]*?\/\/ mesh:end/.test(sea)) throw new Error('hooks/sea.ts has no mesh:start and mesh:end markers')
+if (process.argv.includes('--check')) {
+  if (written !== sea) {
+    console.error('hooks/sea.ts holds a shark mesh other than the paths in hooks/scene.ts give: run node scripts/mesh.mjs')
+    process.exit(1)
+  }
+  console.log(`The shark mesh matches hooks/scene.ts: ${points.length} points, ${tris.length} triangles`)
+} else {
+  writeFileSync(target, written)
+  console.log(`${points.length} points, ${tris.length} triangles`)
+}
