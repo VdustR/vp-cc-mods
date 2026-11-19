@@ -24,6 +24,8 @@ export type Sea = {
   crestOpacity: number
   shark: string
   sharkOpacity: number
+  /** The shark's line art: a shade on the far side of the water from the shark, so it reads on it at any tone. */
+  line: string
   shadow: string
   shadowOpacity: number
   speck: string
@@ -79,6 +81,12 @@ function shade(background: string, target: number, isLighter: boolean): string {
   return out
 }
 
+/**
+ * How far the shark's line art stands from the water, the other way from the shark: darker than the water on a
+ * dark scheme and lighter on a light one. The shader shades its lines by the same number.
+ */
+export const LINE_CONTRAST = 1.25
+
 /** The contrast between the water and its ribbons at a depth level, 1 (barely there) to 10 (deep). */
 export function depthContrast(depth: number): number {
   return 1 + Math.max(1, Math.min(10, depth)) * 0.1
@@ -91,7 +99,7 @@ export function depthContrast(depth: number): number {
  * On a dark scheme the water is the background, level with the app's panels, and the ribbons are a lighter shade
  * of it. A light scheme has no room above its background, so there the ribbons are the background and the water
  * is a darker shade of it. The shark is a shade further from the water: paler on a dark scheme, darker on a light
- * one.
+ * one. Its line art is a shade the other way, so the lines stand further from the shark than the water does.
  */
 export function seaOf(scheme: Scheme, depth: number, sharkTone = 4): Sea {
   const isDark = modeOf(scheme) === 'dark'
@@ -116,6 +124,7 @@ export function seaOf(scheme: Scheme, depth: number, sharkTone = 4): Sea {
     crestOpacity: 1,
     shark,
     sharkOpacity: 1,
+    line: shade(water, LINE_CONTRAST, !isDark),
     shadow: contrast(dim, water) >= 1.3 ? dim : '#000000',
     // A deeper sea throws a darker shadow; at the default depth it is what it was.
     shadowOpacity: +Math.min(0.8, (isDark ? 0.5 : 0.35) * (0.4 + depth * 0.2)).toFixed(2),
