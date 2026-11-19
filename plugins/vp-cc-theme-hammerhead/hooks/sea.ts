@@ -46,6 +46,14 @@ function partOf(index: number): number {
 }
 // mesh:end
 
+/**
+ * A value that stands for a whole number, read back whole. The app rounds each value to 10 bits of its range, so
+ * 5 can arrive as 4.997, and \`floor\` alone would read it as 4.
+ */
+function whole(x: number): number {
+  return floor(x + 0.5)
+}
+
 /** The drawing's size: the SVG's view box, laid over the window as `xMidYMid slice` lays it. */
 const WIDE = 1600
 const TALL = 1000
@@ -99,7 +107,7 @@ function pace(): number {
  * beat follows the distance swum, so a faster shark beats faster and the tail never works harder than it goes.
  */
 function stride(): number {
-  return 250 * (0.92 + hash(floor(v.seed) + 8) * 0.14) * v.size
+  return 250 * (0.92 + hash(whole(v.seed) + 8) * 0.14) * v.size
 }
 
 /** How fast the water flows: its own pace, and three times that in a rush. */
@@ -147,7 +155,7 @@ const SWING = 0.5
 // far through its tail's beat it is (w); the second the water's clock (x), how much it follows the pointer (y), how
 // fast it turns (z) and its wandering's clock (w); the third where it last saw the pointer move (xy).
 const swim: Buffer = buffer({ size: [3, 1], float: 32, filter: 'nearest' }, p => {
-  const s = floor(v.seed)
+  const s = whole(v.seed)
   const a = swim.at(vec2(0, 0))
   const b = swim.at(vec2(1, 0))
   const speed = pace()
@@ -325,7 +333,7 @@ function placed(vertex: number, isShadow: number): { at: number; hide: boolean }
   const here = at.xy
   const after = at.z
   const beatAt = at.w
-  const grown = (0.92 + hash(floor(v.seed) + 8) * 0.14) * v.size
+  const grown = (0.92 + hash(whole(v.seed) + 8) * 0.14) * v.size
   // How hard it turns, in radians a unit swum.
   const turn = swim.at(vec2(1, 0)).z / pace()
   // The tail's two lobes open into a fork as the tail sweeps, as in scene.ts.
@@ -348,7 +356,7 @@ function placed(vertex: number, isShadow: number): { at: number; hide: boolean }
   const drawn = here + (spun + along * (p.x - ride) + right * p.y) * grown + vec2(18, 28) * v.size * isShadow
   const w = toWindow(vec2(drawn))
 
-  return { at: vec4(w.x / size.x * 2 - 1, 1 - w.y / size.y * 2, 0, 1), hide: mod(floor(v.kinds), 2) < 0.5 }
+  return { at: vec4(w.x / size.x * 2 - 1, 1 - w.y / size.y * 2, 0, 1), hide: mod(whole(v.kinds), 2) < 0.5 }
 }
 
 // The shark as a mask: red where its shadow falls, green where it is. As sharp as the picture, and read through
@@ -387,9 +395,9 @@ const flow: Buffer = buffer({ scale: 0.125, float: 16 }, p => {
 const RIBBONS = 7
 const ribbons: Buffer = buffer({ size: [RIBBONS, 2], float: 32, filter: 'nearest' }, p => {
   const i = floor(p.cell.x)
-  const k = floor(v.seed) * 13 + i * 7
+  const k = whole(v.seed) * 13 + i * 7
   const t = swim.at(vec2(1, 0)).x
-  const count = 3 + 2 * floor(floor(v.kinds) / 2)
+  const count = 3 + 2 * floor(whole(v.kinds) / 2)
   const wave = 420 + hash(k + 1) * 560
   const lift = 16 + hash(k + 2) * 44
   const base = 90 + (i + hash(k + 3) * 0.9) * (820 / count)
@@ -470,7 +478,10 @@ const sea = shader({
       // Worked in linear light, with a square for the curve: close to sRGB's, and far cheaper than a power.
       const linear = vec3(water * water)
       const l = luma(linear)
-      const isDark = 1 - step(0.02, l)
+      // Dark water is under the luminance where black and white stand equally far from it. Every shipped dark
+      // scheme's water lies between 0.009 and 0.041 and every light one's between 0.59 and 0.71; a line at 0.02 turned the
+      // shark black on five dark schemes, Gruvbox among them.
+      const isDark = 1 - step(0.18, l)
       // Light drifting over the water, as strong as the ribbons: stronger in a deeper sea.
       let color = mix(linear, shade(linear, l, 1 + v.depth * 0.05, 1), bend.z * 0.8)
       const half = vec2(0.5 / size.x, 0.5 / size.y)
