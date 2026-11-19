@@ -182,7 +182,9 @@ const swim: Buffer = buffer({ size: [3, 1], float: 32, filter: 'nearest' }, p =>
   const rate = b.z + clamp(want - b.z, -SWING * dt, SWING * dt)
   const heading = mod(a.z + rate * dt + PI, 2 * PI) - PI
   const ahead = vec4(a.xy + vec2(cos(heading), sin(heading)) * speed * dt, heading, fract(a.w + (dt * speed) / stride()))
-  const after = vec4(b.x + dt * current(), follow, rate, b.w + dt)
+  // The two clocks wrap every 10,000 seconds: a float kept counting loses the precision a frame's step needs after
+  // a day or two, and the flow would stutter in a window left open.
+  const after = vec4(mod(b.x + dt * current(), 10000), follow, rate, mod(b.w + dt, 10000))
   const start = vec4(WIDE / 2 + (hash(s + 5) - 0.5) * 500, TALL / 2 + (hash(s + 6) - 0.5) * 300, (hash(s + 3) - 0.5) * 6.28, hash(s + 4))
   const begun = vec4(hash(s + 7) * 100, 0, 0, hash(s + 9) * 100)
   const target = vec4(seen, 0, 1)
@@ -407,10 +409,10 @@ const ribbons: Buffer = buffer({ size: [RIBBONS, 2], float: 32, filter: 'nearest
   const phase = hash(k + 10) * 6.28 - (2 * PI * drift) / wave
   // A ribbon past the chosen count is moved out of the drawing.
   const shown = step(i + 0.5, count)
-  const first = vec4(mix(-9999, base + rise, shown), phase, wave, lift)
+  const upper = vec4(mix(-9999, base + rise, shown), phase, wave, lift)
   const second = vec4(60 + hash(k + 4) * 120, 0.7 + hash(k + 5) * 1.5, 0, 0)
 
-  return p.cell.y < 1 ? first : second
+  return p.cell.y < 1 ? upper : second
 })
 
 /** A ribbon's band (x) and its crest (y) at a place in the drawing, each 0 to 1; `isCrest` 0 skips the crest. */

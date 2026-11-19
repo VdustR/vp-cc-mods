@@ -70,7 +70,7 @@ Rules: every color is six-digit hex. For a dark scheme the background is dark an
 async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
   const dark = schemeOf(settings, 'dark')
   const light = schemeOf(settings, 'light')
-  scene = buildScene(seed, {
+  const look = {
     dark: seaOf(dark, settings.depth, settings.sharkTone),
     light: seaOf(light, settings.depth, settings.sharkTone),
     size: settings.size / 100,
@@ -80,21 +80,11 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
     glints: settings.glints,
     waveSpeed: settings.waveSpeed / 100,
     isMoving: settings.backdrop === 'moving',
-  })
+  }
+  scene = buildScene(seed, look)
   stillLook = undefined
   if (settings.backdrop === 'moving') {
-    stillLook = {
-      dark: seaOf(dark, settings.depth, settings.sharkTone),
-      light: seaOf(light, settings.depth, settings.sharkTone),
-      size: settings.size / 100,
-      speed: settings.speed / 100,
-      isSharkShown: settings.isSharkShown,
-      waves: settings.waves,
-      glints: settings.glints,
-      waveSpeed: settings.waveSpeed / 100,
-      isMoving: false,
-      isUnderShader: true,
-    }
+    stillLook = { ...look, isMoving: false, isUnderShader: true }
     shaderValues = {
       seed: seed % 1024,
       size: settings.size / 100,
@@ -106,7 +96,12 @@ async function draw($: EngineInterface, settings: LookSettings): Promise<void> {
       kinds: (settings.isSharkShown ? 1 : 0) + 2 * Math.max(0, Math.min(2, (settings.waves - 3) / 2)),
     }
   }
-  isHurried = settings.isHurried
+  // The hurry is a shader value alone, so a change to it keeps the scene's name: ask for the backdrop again, or it
+  // would wait for the next turn to start or end.
+  if (isHurried !== settings.isHurried) {
+    isHurried = settings.isHurried
+    if (isWorking) $.ui.invalidate('ui.render')
+  }
   const isPlain = settings.backdrop === 'plain'
   const glass = glassOf(settings)
   const drawAs = isPlain ? 'plain' : JSON.stringify([scene, glass])
@@ -323,16 +318,16 @@ export const register: Register = on => {
   on('turn.start', ($, e, next) => {
     if (e.agentId === undefined && !isWorking) {
       isWorking = true
-      $.ui.invalidate('ui.render')
+      if (isHurried && stillLook !== undefined) $.ui.invalidate('ui.render')
     }
 
     return next(e)
   })
 
   on('turn.complete', ($, e, next) => {
-    if ((e as { agentId?: string }).agentId === undefined && isWorking) {
+    if (e.agentId === undefined && isWorking) {
       isWorking = false
-      $.ui.invalidate('ui.render')
+      if (isHurried && stillLook !== undefined) $.ui.invalidate('ui.render')
     }
 
     return next(e)
