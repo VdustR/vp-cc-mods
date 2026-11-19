@@ -472,9 +472,12 @@ const sea = shader({
       const spot = vec2(p.uv + (sway * 16 * scale()) / size)
       const here = scene.sample(spot).rgb
       // The still sea's glints hold still under a shader, so they twinkle here: where this pixel differs from the
-      // water six points beside it, it is a glint, and each fades in and out on its own eleven-second clock.
-      const beside = scene.sample(vec2(spot + vec2(6, 0) / size)).rgb
-      const glint = smoothstep(0.01, 0.05, length(here - beside))
+      // water six points to each side, it is a glint, and each fades in and out on its own eleven-second clock. Both
+      // sides, or water beside a glint would take the glint's color and the glint would seem to hop.
+      const left = scene.sample(vec2(spot - vec2(6, 0) / size)).rgb
+      const right = scene.sample(vec2(spot + vec2(6, 0) / size)).rgb
+      const beside = vec3((left + right) * 0.5)
+      const glint = smoothstep(0.01, 0.05, min(length(here - left), length(here - right)))
       const twinkle = 0.5 + 0.5 * sin((2 * PI * t) / 11 + hash2(vec2(floor(inDrawing(p.point) / 28))) * 6.28)
       const water = vec3(mix(beside, here, min(1, glint * twinkle * 1.8) + (1 - glint)))
       // Worked in linear light, with a square for the curve: close to sRGB's, and far cheaper than a power.
